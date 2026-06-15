@@ -49,6 +49,19 @@ export default function Accounts() {
     localStorage.setItem('connectedAccounts', JSON.stringify(newConnections));
     setAllAccounts(prev => prev.map(a => a.id === disconnectTarget.id ? { ...a, connected: false } : a));
     
+    // Clear specific platform credentials from localStorage
+    if (disconnectTarget.id === 'facebook') {
+      localStorage.removeItem('fb_available_pages');
+      localStorage.removeItem('fb_page_id');
+      localStorage.removeItem('fb_page_name');
+      localStorage.removeItem('fb_access_token');
+      localStorage.removeItem('facebook_username');
+    }
+    if (disconnectTarget.id === 'instagram') {
+      localStorage.removeItem('ig_business_account_id');
+      localStorage.removeItem('instagram_username');
+    }
+
     window.dispatchEvent(new CustomEvent('show-notification', { 
       detail: { type: 'success', message: `${disconnectTarget.name} disconnected successfully` } 
     }));
