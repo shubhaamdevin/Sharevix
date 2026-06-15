@@ -1,0 +1,223 @@
+import { db, storage } from '../firebase';
+import { collection, getDocs, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+function dataURLtoBlob(dataurl) {
+  try {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (e) {
+    console.error("Failed to parse data URL to blob", e);
+    return null;
+  }
+}
+
+
+export const dbService = {
+  // --- MEDIA STORAGE UPLOAD ---
+  async uploadFile(fileOrBase64, fileName) {
+    if (!storage) {
+      if (fileOrBase64 instanceof File) {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(fileOrBase64);
+        });
+      }
+      return fileOrBase64;
+    }
+    try {
+      let blob = fileOrBase64;
+      let name = fileName;
+      if (typeof fileOrBase64 === 'string') {
+        blob = dataURLtoBlob(fileOrBase64);
+        if (!blob) return fileOrBase64;
+      } else if (fileOrBase64 instanceof File) {
+        name = fileOrBase64.name;
+      }
+      
+      const fileExtension = blob.type.split('/')[1] || 'bin';
+      const finalName = name ? name : `upload_${Date.now()}.${fileExtension}`;
+      
+      const storageRef = ref(storage, `posts_media/${Date.now()}_${finalName}`);
+      
+      const uploadPromise = uploadBytes(storageRef, blob).then(async (snapshot) => {
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        return downloadURL;
+      });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 4000)
+      );
+
+      const downloadURL = await Promise.race([uploadPromise, timeoutPromise]);
+      return downloadURL;
+    } catch (e) {
+      console.warn("Firebase Storage upload failed or timed out, using local fallback URL:", e);
+      if (fileOrBase64 instanceof File) {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(fileOrBase64);
+        });
+      }
+      return typeof fileOrBase64 === 'string' ? fileOrBase64 : '';
+    }
+  },
+
+  // --- USERS MANAGEMENT ---
+  
+  async getUsers() {
+    try {
+      const querySnapshot = await getDocs(collection(db, "users"));
+      const usersList = [];
+      querySnapshot.forEach((doc) => {
+        usersList.push({ id: doc.id, ...doc.data() });
+      });
+      return usersList;
+    } catch (e) {
+      console.error("Error reading users from Firestore: ", e);
+      return [];
+    }
+  },
+
+  async updateUserStatus(userId, newStatus) {
+    try {
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, { status: newStatus });
+      return true;
+    } catch (e) {
+      console.error("Error updating user status in Firestore: ", e);
+      return false;
+    }
+  },
+
+  async updateUserRole(userId, newRole) {
+    try {
+      const userRef = doc(db, "users", userId);
+      await updateDoc(userRef, { role: newRole });
+      return true;
+    } catch (e) {
+      console.error("Error updating user role in Firestore: ", e);
+      return false;
+    }
+  },
+
+  async deleteUser(userId) {
+    try {
+      const userRef = doc(db, "users", userId);
+      await deleteDoc(userRef);
+      return true;
+    } catch (e) {
+      console.error("Error deleting user from Firestore: ", e);
+      return false;
+    }
+  },
+
+  // --- POSTS MANAGEMENT ---
+
+  async getPosts() {
+    const fallbackGet = () => {
+      try {
+        const posts = localStorage.getItem('postHistory');
+        return posts ? JSON.parse(posts) : [];
+      } catch (err) {
+        return [];
+      }
+    };
+
+    try {
+      const fetchPromise = getDocs(collection(db, "posts")).then(querySnapshot => {
+        const postsList = [];
+        querySnapshot.forEach((doc) => {
+          postsList.push({ id: doc.id, ...doc.data() });
+        });
+        return postsList;
+      });
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Firestore read timeout")), 3000)
+      );
+
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
+      return result;
+    } catch (e) {
+      console.warn("Firestore read failed or timed out, reading from localStorage fallback:", e);
+      return fallbackGet();
+    }
+  },
+
+  async deletePost(postId) {
+    const posts = await this.getPosts();
+    const targetPost = posts.find(p => String(p.id) === String(postId));
+    
+    if (targetPost && targetPost.fb_post_id) {
+      const token = localStorage.getItem('fb_access_token');
+      if (token) {
+        try {
+          console.log(`Sync-deleting FB post: ${targetPost.fb_post_id}`);
+          const res = await fetch(`https://graph.facebook.com/v18.0/${targetPost.fb_post_id}?access_token=${token}`, {
+            method: 'DELETE'
+          });
+          const data = await res.json();
+          if (res.ok) {
+            console.log("Deleted post from Facebook Page API successfully", data);
+          } else {
+            console.error("Facebook API delete error:", data);
+          }
+        } catch (err) {
+          console.error("Failed to call Facebook delete API:", err);
+        }
+      }
+    }
+
+    try {
+      const postRef = doc(db, "posts", postId);
+      await deleteDoc(postRef);
+      return true;
+    } catch (e) {
+      console.error("Error deleting post from Firestore: ", e);
+      return false;
+    }
+  },
+
+  async addPost(postData) {
+    const fallbackMockAdd = async () => {
+      let mockPosts = [];
+      try {
+        const posts = localStorage.getItem('postHistory');
+        mockPosts = posts ? JSON.parse(posts) : [];
+      } catch (err) {
+        console.error("Failed to parse mock posts:", err);
+      }
+      const newPost = { id: Date.now(), ...postData };
+      mockPosts.push(newPost);
+      localStorage.setItem('postHistory', JSON.stringify(mockPosts));
+      return newPost;
+    };
+
+    try {
+      const addPromise = addDoc(collection(db, "posts"), postData).then(docRef => ({
+        id: docRef.id,
+        ...postData
+      }));
+
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Firestore write timeout")), 3500)
+      );
+
+      const result = await Promise.race([addPromise, timeoutPromise]);
+      return result;
+    } catch (e) {
+      console.warn("Firestore write failed or timed out, falling back to localStorage database:", e);
+      return fallbackMockAdd();
+    }
+  }
+};

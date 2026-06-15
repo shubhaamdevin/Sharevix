@@ -1,0 +1,344 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Radio, Users, AlertCircle, Link2, ChevronRight, Play } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, ThreadsIcon, PinterestIcon } from '../components/Icons';
+
+const platformDetails = {
+  facebook: { name: 'Facebook', icon: FacebookIcon, color: '#1877F2', type: 'Fans' },
+  instagram: { name: 'Instagram', icon: InstagramIcon, color: '#E1306C', type: 'Followers' },
+  youtube: { name: 'YouTube', icon: YoutubeIcon, color: '#FF0000', type: 'Subscribers' },
+  x: { name: 'X (Twitter)', icon: TwitterIcon, color: '#ffffff', type: 'Followers' },
+  threads: { name: 'Threads', icon: ThreadsIcon, color: '#ffffff', type: 'Followers' }
+};
+
+export default function LiveCount() {
+  const navigate = useNavigate();
+  const [activePlatform, setActivePlatform] = useState('youtube');
+  const [connectedPlatforms, setConnectedPlatforms] = useState([]);
+  const [baseCount, setBaseCount] = useState(0);
+  const [displayCount, setDisplayCount] = useState(0);
+  const [isTicking, setIsTicking] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Load connected accounts from LocalStorage
+  const checkConnections = () => {
+    const saved = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
+    setConnectedPlatforms(saved);
+  };
+
+  useEffect(() => {
+    checkConnections();
+  }, []);
+
+  const isConnected = connectedPlatforms.includes(activePlatform);
+
+  // Fetch actual or mock base counts on platform change
+  useEffect(() => {
+    if (!isConnected) {
+      setIsTicking(false);
+      return;
+    }
+
+    const fetchBaseCount = async (showLoading = true) => {
+      if (showLoading) {
+        setIsLoading(true);
+        setIsTicking(false);
+        // Simulate connection loading lag
+        await new Promise(r => setTimeout(r, 800));
+      }
+
+      if (activePlatform === 'facebook') {
+        const token = localStorage.getItem('fb_access_token');
+        let pageId = localStorage.getItem('fb_page_id');
+        if (token) {
+          try {
+            if (!pageId) {
+              const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`);
+              const data = await res.json();
+              if (res.ok && data.data && data.data.length > 0) {
+                pageId = data.data[0].id;
+              }
+            }
+            if (pageId) {
+              const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=fan_count,followers_count&access_token=${token}`);
+              const data = await res.json();
+              if (res.ok) {
+                let count = 0;
+                if (data.followers_count !== undefined && data.followers_count !== null) {
+                  count = data.followers_count;
+                } else if (data.fan_count !== undefined && data.fan_count !== null) {
+                  count = data.fan_count;
+                }
+                setBaseCount(count);
+                setDisplayCount(count);
+                if (showLoading) setIsLoading(false);
+                setIsTicking(count > 0);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      if (activePlatform === 'instagram') {
+        const token = localStorage.getItem('fb_access_token');
+        let pageId = localStorage.getItem('fb_page_id');
+        if (token) {
+          try {
+            if (!pageId) {
+              const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?access_token=${token}`);
+              const data = await res.json();
+              if (res.ok && data.data && data.data.length > 0) {
+                pageId = data.data[0].id;
+              }
+            }
+            if (pageId) {
+              const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=instagram_business_account{followers_count}&access_token=${token}`);
+              const data = await res.json();
+              if (res.ok && data.instagram_business_account) {
+                const count = data.instagram_business_account.followers_count || 0;
+                setBaseCount(count);
+                setDisplayCount(count);
+                if (showLoading) setIsLoading(false);
+                setIsTicking(count > 0);
+                return;
+              }
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      if (activePlatform === 'threads') {
+        const token = localStorage.getItem('threads_access_token');
+        if (token) {
+          try {
+            const res = await fetch(`https://graph.threads.net/v1.0/me?fields=follower_count&access_token=${token}`);
+            const data = await res.json();
+            if (res.ok) {
+              const count = data.follower_count || 0;
+              setBaseCount(count);
+              setDisplayCount(count);
+              if (showLoading) setIsLoading(false);
+              setIsTicking(count > 0);
+              return;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+
+      // Simulated base counts for connected platforms default to 0 to keep values original
+      const count = 0;
+      setBaseCount(count);
+      setDisplayCount(count);
+      if (showLoading) setIsLoading(false);
+      setIsTicking(false);
+    };
+
+    // Initial fetch
+    fetchBaseCount(true);
+
+    // Poll for live API updates every 10 seconds
+    const interval = setInterval(() => {
+      fetchBaseCount(false);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [activePlatform, connectedPlatforms]);
+
+  // Live ticking mechanism (YouTube live sub counter style)
+  useEffect(() => {
+    if (!isTicking || isLoading) return;
+
+    const interval = setInterval(() => {
+      setDisplayCount(prev => {
+        // 80% chance of ticking up, 20% down or no change
+        const chance = Math.random();
+        if (chance > 0.85) {
+          return prev - Math.floor(Math.random() * 2) - 1;
+        } else if (chance > 0.3) {
+          return prev + Math.floor(Math.random() * 3) + 1;
+        }
+        return prev;
+      });
+    }, 2800); // Ticks every 2.8 seconds
+
+    return () => clearInterval(interval);
+  }, [isTicking, isLoading]);
+
+  const activeDetails = platformDetails[activePlatform];
+  const Icon = activeDetails.icon;
+
+  const isMockConnection = false;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', height: '100%' }}>
+      
+      {/* Header */}
+      <div>
+        <h2 style={{ fontSize: '2rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+          <Radio size={28} color="#ff3d00" className={isTicking ? 'animate-pulse' : ''} /> Real-Time Live Count
+        </h2>
+        <p style={{ color: 'var(--text-secondary)' }}>Watch your subscribers, followers, and fans grow live with real-time dynamic ticking.</p>
+      </div>
+
+      {/* Platform Switcher Grid */}
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', background: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: '16px', border: '1px solid var(--panel-border)', width: 'fit-content' }}>
+        {Object.entries(platformDetails).map(([id, info]) => {
+          const PlatIcon = info.icon;
+          const isActive = activePlatform === id;
+          const isPlatConnected = connectedPlatforms.includes(id);
+
+          return (
+            <button 
+              key={id}
+              onClick={() => setActivePlatform(id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                background: isActive ? `${info.color}15` : 'transparent',
+                border: isActive ? `1px solid ${info.color}` : '1px solid transparent',
+                color: isActive ? '#fff' : 'var(--text-secondary)',
+                padding: '0.6rem 1.2rem', borderRadius: '12px', cursor: 'pointer',
+                fontWeight: 600, fontSize: '0.9rem', transition: 'all 0.2s',
+                boxShadow: isActive ? `0 0 10px ${info.color}20` : 'none'
+              }}
+            >
+              <PlatIcon size={16} color={isActive ? info.color : 'var(--text-secondary)'} />
+              {info.name}
+              {isPlatConnected && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }}></div>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Live Count Display Area */}
+      <div className="glass-panel" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '380px', position: 'relative', overflow: 'hidden' }}>
+        
+        {/* Glowing Background Radial */}
+        <div style={{
+          position: 'absolute', width: '300px', height: '300px',
+          background: `radial-gradient(circle, ${activeDetails.color}08 0%, transparent 70%)`,
+          zIndex: 1, pointerEvents: 'none'
+        }} />
+
+        <AnimatePresence mode="wait">
+          {!isConnected ? (
+            
+            // Platform Not Connected View
+            <motion.div 
+              key="not-connected"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', zIndex: 5, textAlign: 'center', padding: '2rem' }}
+            >
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255, 61, 0, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255, 61, 0, 0.2)' }}>
+                <AlertCircle size={32} color="var(--error)" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>{activeDetails.name} is Not Connected</h3>
+                <p style={{ color: 'var(--text-secondary)', maxWidth: '400px', fontSize: '0.95rem' }}>
+                  Live follower counts are only available for authenticated profiles. Connect your {activeDetails.name} account to begin tracking.
+                </p>
+              </div>
+              <button 
+                onClick={() => navigate('/accounts')}
+                className="btn-primary" 
+                style={{ 
+                  padding: '0.75rem 1.75rem', borderRadius: '12px', fontSize: '0.95rem',
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  background: `linear-gradient(45deg, ${activeDetails.color}, var(--accent-blue))`
+                }}
+              >
+                <Link2 size={18} /> Connect {activeDetails.name} <ChevronRight size={16} />
+              </button>
+            </motion.div>
+
+          ) : isLoading ? (
+
+            // Loading / Syncing State
+            <motion.div 
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem', zIndex: 5 }}
+            >
+              <div className="animate-spin" style={{ width: '40px', height: '40px', borderRadius: '50%', border: '3px solid rgba(255,255,255,0.03)', borderTop: `3px solid ${activeDetails.color}` }}></div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.05em' }}>
+                ESTABLISHING STREAM WITH {activeDetails.name.toUpperCase()}...
+              </div>
+            </motion.div>
+
+          ) : (
+
+            // Active Live Ticker Count View (YouTube Style)
+            <motion.div 
+              key="connected-live"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem', zIndex: 5 }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {/* Blinking Live Indicator */}
+                  <div style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#ff1744', left: '-20px', animation: 'pulse 1.5s infinite' }}></div>
+                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                    Live {activeDetails.type}
+                  </span>
+                </div>
+                {/* Real API Connection Status */}
+              </div>
+
+              {/* Ticking Numbers Display */}
+              <div style={{ 
+                fontSize: '5.5rem', fontWeight: 900, fontFamily: 'monospace', 
+                color: '#fff', letterSpacing: '-0.02em', textShadow: `0 0 40px ${activeDetails.color}35`,
+                display: 'flex', gap: '2px', padding: '1rem 2rem', borderRadius: '24px', 
+                background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.03)'
+              }}>
+                <AnimatePresence mode="popLayout">
+                  {displayCount.toLocaleString().split('').map((char, index) => (
+                    <motion.span 
+                      key={`${char}-${index}`}
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      exit={{ y: -20, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      style={{ display: 'inline-block' }}
+                    >
+                      {char}
+                    </motion.span>
+                  ))}
+                </AnimatePresence>
+              </div>
+
+              {/* Platform Branding Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.6rem 1.5rem', borderRadius: '30px', border: '1px solid var(--panel-border)' }}>
+                <Icon size={24} color={activeDetails.color} />
+                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{activeDetails.name} Page Live Counter</span>
+              </div>
+
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Pulse Keyframe Animation Styles */}
+      <style>{`
+        @keyframes pulse {
+          0% { transform: scale(0.9); opacity: 0.5; }
+          50% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(0.9); opacity: 0.5; }
+        }
+      `}</style>
+    </div>
+  );
+}
