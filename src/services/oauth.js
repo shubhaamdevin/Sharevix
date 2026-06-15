@@ -5,7 +5,7 @@ export const generateOAuthUrl = (platformId) => {
   switch (platformId) {
     case 'facebook':
     case 'instagram': // Instagram uses Facebook Graph API for business accounts
-      return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${import.meta.env.VITE_FACEBOOK_CLIENT_ID}&redirect_uri=${redirectUri}&state=${state}&scope=pages_manage_posts,pages_read_engagement,pages_show_list`;
+      return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${import.meta.env.VITE_FACEBOOK_CLIENT_ID}&redirect_uri=${redirectUri}&state=${state}&response_type=token&scope=pages_manage_posts,pages_read_engagement,pages_show_list`;
       
     case 'threads':
       return `https://threads.net/oauth/authorize?client_id=${import.meta.env.VITE_THREADS_CLIENT_ID}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish&response_type=code&state=${state}`;
