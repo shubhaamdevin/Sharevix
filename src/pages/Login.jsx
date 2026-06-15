@@ -49,7 +49,15 @@ export default function Login() {
       await loginWithGoogle();
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message);
+      console.error("Google Auth error:", err);
+      const isPopupClosed = err.code === 'auth/popup-closed-by-user' || 
+                            err.message?.toLowerCase().includes('closed') || 
+                            err.message?.toLowerCase().includes('cancel');
+      if (isPopupClosed) {
+        setError('Google login window was closed. If you saw "Access blocked: App has not completed the Google verification process", please publish your Google OAuth App to "Production" in the Google Cloud Console.');
+      } else {
+        setError(err.message || 'Failed to authenticate with Google.');
+      }
     } finally {
       setLoading(false);
     }
