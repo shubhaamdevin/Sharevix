@@ -31,6 +31,22 @@ export default function Accounts() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState(() => localStorage.getItem('fb_page_id') || '');
   
+  const isPlatformMock = (id) => {
+    if (id === 'youtube' || id === 'x' || id === 'threads') return true;
+    if (id === 'facebook') {
+      const pageId = localStorage.getItem('fb_page_id');
+      const token = localStorage.getItem('fb_access_token');
+      return !pageId || pageId === '123456789012345' || !token || token.startsWith('mock_');
+    }
+    if (id === 'instagram') {
+      const pageId = localStorage.getItem('fb_page_id');
+      const token = localStorage.getItem('fb_access_token');
+      const igId = localStorage.getItem('ig_business_account_id');
+      return !pageId || pageId === '123456789012345' || !token || token.startsWith('mock_') || !igId || igId === 'mock_ig_business_account_id_123456' || igId === '987654321098765';
+    }
+    return false;
+  };
+  
   useEffect(() => {
     const loadAccounts = () => {
       const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
@@ -114,10 +130,16 @@ export default function Accounts() {
                       <Icon size={40} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{acc.name}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
-                          Connected {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
-                          {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
-                        </div>
+                        {isPlatformMock(acc.id) ? (
+                          <div style={{ fontSize: '0.85rem', color: '#ffb300', fontWeight: 500 }}>
+                            Connected (Mock Simulation)
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
+                            Connected {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
+                            {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button onClick={() => handleAccountConnect(acc)} style={{ background: 'rgba(255,61,0,0.1)', border: '1px solid rgba(255,61,0,0.3)', color: 'var(--error)', padding: '0.5rem 1rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

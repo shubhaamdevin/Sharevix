@@ -631,6 +631,30 @@ export default function CreatePost() {
   const editPost = location.state?.editPost;
 
   const [selectedDevice, setSelectedDevice] = useState(devices[0]);
+  
+  const getMockTargets = () => {
+    const mockTargets = [];
+    const fbToken = localStorage.getItem('fb_access_token');
+    const fbPageId = localStorage.getItem('fb_page_id');
+    const igBusinessId = localStorage.getItem('ig_business_account_id');
+
+    if (selectedTargets.includes('youtube')) mockTargets.push('YouTube');
+    if (selectedTargets.includes('x')) mockTargets.push('X (Twitter)');
+    if (selectedTargets.includes('threads')) mockTargets.push('Threads');
+    
+    if (selectedTargets.includes('facebook')) {
+      if (!fbPageId || fbPageId === '123456789012345' || !fbToken || fbToken.startsWith('mock_')) {
+        mockTargets.push('Facebook');
+      }
+    }
+    if (selectedTargets.includes('instagram')) {
+      const isIgMock = !fbPageId || fbPageId === '123456789012345' || !fbToken || fbToken.startsWith('mock_') || !igBusinessId || igBusinessId === 'mock_ig_business_account_id_123456' || igBusinessId === '987654321098765';
+      if (isIgMock) {
+        mockTargets.push('Instagram');
+      }
+    }
+    return mockTargets;
+  };
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
   const deviceDropdownRef = useRef(null);
 
@@ -2444,6 +2468,31 @@ export default function CreatePost() {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {getMockTargets().length > 0 && (
+              <div style={{ 
+                background: 'rgba(255, 171, 0, 0.05)', 
+                border: '1px solid rgba(255, 171, 0, 0.2)', 
+                padding: '1rem', 
+                borderRadius: '12px', 
+                color: '#ffb300', 
+                fontSize: '0.85rem', 
+                lineHeight: '1.4', 
+                display: 'flex', 
+                alignItems: 'flex-start', 
+                gap: '0.75rem',
+                marginBottom: '1rem'
+              }}>
+                <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <strong>Sandbox Mock Mode active for: {getMockTargets().join(', ')}.</strong>
+                  <div style={{ opacity: 0.85, marginTop: '0.25rem' }}>
+                    Posts to these targets will be simulated inside the web app dashboard history but will not publish to live channels. 
+                    {getMockTargets().some(t => t === 'Facebook' || t === 'Instagram') && " Connect your real Meta Page on the Accounts page to disable simulation."}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: '1rem' }}>
               <motion.button type="button" onClick={() => handlePublish('draft')} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn-secondary" disabled={isPublishing} style={{ flex: 1, fontSize: '1rem', padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
