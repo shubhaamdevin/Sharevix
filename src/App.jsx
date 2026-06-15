@@ -18,6 +18,7 @@ import AdminBanned from './pages/AdminBanned';
 import AdminPosts from './pages/AdminPosts';
 import AdminScheduled from './pages/AdminScheduled';
 import AuthCallback from './pages/AuthCallback';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import { useAuth } from './context/AuthContext';
@@ -188,6 +189,7 @@ function App() {
           </Route>
           
           <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
       </Routes>
       </Router>
     </>
