@@ -677,6 +677,12 @@ export default function CreatePost() {
     const handle = `@${username.toLowerCase().replace(/\s+/g, '')}`;
     const title = previewData?.title || '';
     const description = previewData?.description || '';
+    
+    // Get media specifically for the preview platform
+    const media = platformMedia[previewPlatform] !== undefined 
+      ? platformMedia[previewPlatform] 
+      : (platformMedia.universal || []);
+      
     const hasMedia = media.length > 0;
     
     const renderMediaContent = (height = '300px', borderRadius = '0px') => {
@@ -1297,12 +1303,17 @@ export default function CreatePost() {
     return { universal: { title: '', description: '' } };
   });
   const [activeTab, setActiveTab] = useState('universal');
-  const [media, setMedia] = useState(() => {
-    if (editPost && editPost.media) {
-      return editPost.media;
+  const [platformMedia, setPlatformMedia] = useState(() => {
+    if (editPost) {
+      if (editPost.platformMedia) return editPost.platformMedia;
+      if (editPost.media) return { universal: editPost.media };
     }
-    return [];
+    return { universal: [] };
   });
+  
+  const media = platformMedia[activeTab] !== undefined 
+    ? platformMedia[activeTab] 
+    : (platformMedia.universal || []);
   
   const [thumbnail, setThumbnail] = useState(() => {
     if (editPost && editPost.thumbnail) {
@@ -1456,11 +1467,11 @@ export default function CreatePost() {
 
   const handleTypeChange = (type) => {
     if (type === 'reel' && contentType !== 'reel') {
-      setMedia([]);
+      setPlatformMedia({ universal: [] });
     } else if (type === 'quiz') {
-      setMedia([]);
+      setPlatformMedia({ universal: [] });
     } else if (type === 'video') {
-      setMedia([]);
+      setPlatformMedia({ universal: [] });
       setSelectedTargets(['youtube']);
       setPreviewPlatform('youtube');
     }
@@ -1474,13 +1485,29 @@ export default function CreatePost() {
         type: file.type,
         rawFile: file
       }));
-      setMedia(prev => [...prev, ...filesArray]);
+      setPlatformMedia(prev => {
+        const currentTabMedia = prev[activeTab] !== undefined 
+          ? prev[activeTab] 
+          : [...(prev.universal || [])];
+        return {
+          ...prev,
+          [activeTab]: [...currentTabMedia, ...filesArray]
+        };
+      });
       e.target.value = '';
     }
   };
 
   const removeMedia = (indexToRemove) => {
-    setMedia(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    setPlatformMedia(prev => {
+      const currentTabMedia = prev[activeTab] !== undefined 
+        ? prev[activeTab] 
+        : [...(prev.universal || [])];
+      return {
+        ...prev,
+        [activeTab]: currentTabMedia.filter((_, idx) => idx !== indexToRemove)
+      };
+    });
     setIsPublishing(false);
   };
 
@@ -1552,8 +1579,16 @@ export default function CreatePost() {
       return platformContents.universal || { title: '', description: '' };
     };
 
+    const getPlatformMedia = (platformId) => {
+      if (platformMedia[platformId] !== undefined) {
+        return platformMedia[platformId];
+      }
+      return platformMedia.universal || [];
+    };
+
     const cur = platformContents.universal || { title: '', description: '' };
-    const hasContent = Object.values(platformContents).some(c => c && (c.title || c.description)) || media.length > 0 || contentType === 'quiz';
+    const hasAnyMedia = Object.values(platformMedia).some(m => m && m.length > 0);
+    const hasContent = Object.values(platformContents).some(c => c && (c.title || c.description)) || hasAnyMedia || contentType === 'quiz';
     if (!hasContent && status !== 'draft') return;
     if (selectedTargets.length === 0 && status !== 'draft') return;
     if (isOverLimit) {
@@ -1591,29 +1626,37 @@ export default function CreatePost() {
         }
       }
 
+      // Upload media for all platforms
+      const uploadedPlatformMedia = {};
+      for (const platformId of Object.keys(platformMedia)) {
+        const platformFiles = platformMedia[platformId];
+        if (platformFiles && platformFiles.length > 0) {
+          uploadedPlatformMedia[platformId] = await Promise.all(
+            platformFiles.map(async (file) => {
+              if (file.url.startsWith('http') && !file.url.startsWith('blob:')) {
+                return file;
+              }
+              const downloadUrl = await dbService.uploadFile(file.rawFile || file.url);
+              return {
+                type: file.type,
+                url: downloadUrl
+              };
+            })
+          );
+        }
+      }
+
+      const activeMedia = getPlatformMedia(activeTab);
       const postData = {
         date: publishDate,
-        content: finalContent || (media.length > 0 ? '[Media Post]' : '[No Content]'),
+        content: finalContent || (activeMedia.length > 0 ? '[Media Post]' : '[No Content]'),
         platforms: status === 'draft' ? [] : selectedTargets,
         type: contentType,
         status: status, // 'published', 'scheduled', or 'draft'
-        media: media,
+        media: uploadedPlatformMedia.universal || [],
+        platformMedia: uploadedPlatformMedia,
         thumbnail: uploadedThumbnail
       };
-
-      const uploadedMedia = await Promise.all(
-        media.map(async (file) => {
-          if (file.url.startsWith('http') && !file.url.startsWith('blob:')) {
-            return file;
-          }
-          const downloadUrl = await dbService.uploadFile(file.rawFile || file.url);
-          return {
-            type: file.type,
-            url: downloadUrl
-          };
-        })
-      );
-      postData.media = uploadedMedia;
 
       // Direct Real-time Facebook API Posting with auto-resolving Page ID and Page Access Token
       if (status === 'published' && selectedTargets.includes('facebook')) {
@@ -1651,8 +1694,10 @@ export default function CreatePost() {
 
           const fbContent = getPlatformContent('facebook');
           const postText = `${fbContent.title ? fbContent.title + '\n' : ''}${fbContent.description || ''}`;
+          const fbMedia = getPlatformMedia('facebook');
+          const fbUploadedMedia = uploadedPlatformMedia.facebook !== undefined ? uploadedPlatformMedia.facebook : (uploadedPlatformMedia.universal || []);
 
-          if (!postText.trim() && media.length === 0) {
+          if (!postText.trim() && fbMedia.length === 0) {
             throw new Error("The post content is empty. Please enter some text or add media.");
           }
 
@@ -1671,8 +1716,8 @@ export default function CreatePost() {
                   access_token: token
                 })
               });
-            } else if (media.length > 0) {
-              const file = media[0];
+            } else if (fbMedia.length > 0) {
+              const file = fbMedia[0];
               const fileBlob = file.rawFile || (await fetch(file.url).then(r => r.blob()));
               const formData = new FormData();
               formData.append('access_token', token);
@@ -1788,12 +1833,15 @@ export default function CreatePost() {
             postData.ig_post_id = `mock_ig_post_${Date.now()}`;
           } else {
             // Real Instagram Publishing
-            if (media.length === 0) {
+            const igMedia = getPlatformMedia('instagram');
+            const igUploadedMedia = uploadedPlatformMedia.instagram !== undefined ? uploadedPlatformMedia.instagram : (uploadedPlatformMedia.universal || []);
+
+            if (igMedia.length === 0) {
               throw new Error("Instagram requires at least one photo or video to publish.");
             }
 
-            const fileUrl = uploadedMedia[0].url;
-            const isVideo = uploadedMedia[0].type.startsWith('video');
+            const fileUrl = igUploadedMedia[0].url;
+            const isVideo = igUploadedMedia[0].type.startsWith('video');
 
             // 2. Create Media Container
             let containerUrl = `https://graph.facebook.com/v18.0/${igBusinessAccountId}/media?caption=${encodeURIComponent(postText)}&access_token=${token}`;
@@ -1862,7 +1910,7 @@ export default function CreatePost() {
       window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'success', message: msg } }));
 
       setPlatformContents({ universal: { title: '', description: '' } });
-      setMedia([]);
+      setPlatformMedia({ universal: [] });
       setThumbnail(null);
       setQuizOptions(['Option 1', 'Option 2']);
       setScheduleDate('');
@@ -2146,7 +2194,33 @@ export default function CreatePost() {
           {contentType !== 'quiz' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
-                <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', fontWeight: 600 }}>Media</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: 600 }}>Media</h3>
+                  {activeTab !== 'universal' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: platformMedia[activeTab] !== undefined ? 'var(--accent-blue)' : 'var(--text-secondary)', fontWeight: 500 }}>
+                        {platformMedia[activeTab] !== undefined 
+                          ? '✨ Custom media for this platform' 
+                          : 'Using Universal media'}
+                      </span>
+                      {platformMedia[activeTab] !== undefined && (
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setPlatformMedia(prev => {
+                              const next = { ...prev };
+                              delete next[activeTab];
+                              return next;
+                            });
+                          }} 
+                          style={{ background: 'none', border: 'none', color: 'var(--accent-purple)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}
+                        >
+                          Use Universal Media
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', background: 'var(--bg-dark)', padding: '1rem', borderRadius: '16px', border: '1px dashed var(--panel-border)' }}>
                   <AnimatePresence>
                     {media.map((file, idx) => (

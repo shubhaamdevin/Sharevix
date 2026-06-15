@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Globe, Video, ImagePlus, CheckCircle2, Loader2, Link2, Unlink } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Globe, Video, ImagePlus, CheckCircle2, Loader2, Link2, Unlink, X } from 'lucide-react';
 import {
   InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon,
   SnapchatIcon, PinterestIcon, RedditIcon, DiscordIcon, ThreadsIcon, TelegramIcon,
@@ -21,10 +22,13 @@ const platformDefinitions = [
 ];
 
 export default function Accounts() {
+  const navigate = useNavigate();
   const [allAccounts, setAllAccounts] = useState([]);
   const [hoveredCardId, setHoveredCardId] = useState(null);
   const [disconnectTarget, setDisconnectTarget] = useState(null);
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
+  const [connectTarget, setConnectTarget] = useState(null);
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState(() => localStorage.getItem('fb_page_id') || '');
   
   useEffect(() => {
@@ -37,8 +41,8 @@ export default function Accounts() {
       setDisconnectTarget(acc);
       setIsDisconnectModalOpen(true);
     } else {
-      // Connect
-      window.location.href = generateOAuthUrl(acc.id);
+      setConnectTarget(acc);
+      setIsConnectModalOpen(true);
     }
   };
 
@@ -104,7 +108,10 @@ export default function Accounts() {
                       <Icon size={40} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{acc.name}</div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>Connected</div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
+                          Connected {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
+                          {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
+                        </div>
                       </div>
                     </div>
                     <button onClick={() => handleAccountConnect(acc)} style={{ background: 'rgba(255,61,0,0.1)', border: '1px solid rgba(255,61,0,0.3)', color: 'var(--error)', padding: '0.5rem 1rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -135,7 +142,13 @@ export default function Accounts() {
                         
                         // Save platform specific usernames dynamically
                         localStorage.setItem('facebook_username', selected.name);
-                        localStorage.setItem('instagram_username', selected.name.toLowerCase().replace(/\s+/g, '_'));
+                        
+                        if (selected.instagram_business_account) {
+                          localStorage.setItem('ig_business_account_id', selected.instagram_business_account.id);
+                          localStorage.setItem('instagram_username', selected.instagram_business_account.username || selected.instagram_business_account.name);
+                        } else {
+                          localStorage.setItem('instagram_username', selected.name.toLowerCase().replace(/\s+/g, '_'));
+                        }
                         
                         window.dispatchEvent(new CustomEvent('show-notification', { 
                           detail: { type: 'success', message: `Active profile: ${selected.name}` } 
@@ -168,11 +181,16 @@ export default function Accounts() {
                               backgroundSize: '1rem'
                             }}
                           >
-                            {availablePages.map(p => (
-                              <option key={p.id} value={p.id} style={{ background: 'var(--bg-dark)', color: 'var(--text-primary)' }}>
-                                {p.name} ({p.category || 'Profile'})
-                              </option>
-                            ))}
+                            {availablePages.map(p => {
+                              const displayName = acc.id === 'instagram' && p.instagram_business_account 
+                                ? `@${p.instagram_business_account.username || p.instagram_business_account.name} (via ${p.name})`
+                                : `${p.name} (${p.category || 'Profile'})`;
+                              return (
+                                <option key={p.id} value={p.id} style={{ background: 'var(--bg-dark)', color: 'var(--text-primary)' }}>
+                                  {displayName}
+                                </option>
+                              );
+                            })}
                           </select>
                         </div>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
@@ -260,6 +278,150 @@ export default function Accounts() {
           setDisconnectTarget(null);
         }}
       />
+
+      {/* Connect Modal */}
+      <AnimatePresence>
+        {isConnectModalOpen && connectTarget && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              width: '100%', 
+              height: '100%', 
+              background: 'rgba(0,0,0,0.8)', 
+              zIndex: 99999, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              backdropFilter: 'blur(10px)',
+              padding: '1rem'
+            }}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} 
+              animate={{ scale: 1, y: 0 }} 
+              exit={{ scale: 0.9, y: 20 }} 
+              style={{ 
+                background: 'var(--bg-dark)', 
+                border: '1px solid var(--panel-border)', 
+                borderRadius: '24px', 
+                padding: '2.5rem', 
+                width: '100%',
+                maxWidth: '460px', 
+                boxShadow: '0 20px 50px rgba(0,0,0,0.6)', 
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1.5rem',
+                textAlign: 'center',
+                alignItems: 'center'
+              }}
+            >
+              {/* Close Button */}
+              <button 
+                onClick={() => setIsConnectModalOpen(false)} 
+                style={{ 
+                  position: 'absolute', 
+                  top: '1.25rem', 
+                  right: '1.25rem', 
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: 'var(--text-secondary)', 
+                  cursor: 'pointer',
+                  transition: 'color 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+              >
+                <X size={18} />
+              </button>
+
+              <div style={{ 
+                width: '64px', 
+                height: '64px', 
+                borderRadius: '50%', 
+                background: `${connectTarget.color}15`, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                border: `1px solid ${connectTarget.color}30`,
+                marginBottom: '0.5rem'
+              }}>
+                {React.createElement(connectTarget.icon, { size: 36 })}
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.5rem' }}>
+                  Connect {connectTarget.name}
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6', margin: 0 }}>
+                  Choose how you want to connect your account. Use Real Connection for live posting (requires an active Meta App) or Mock Connection for local development and sandbox testing.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', marginTop: '0.5rem' }}>
+                <button 
+                  onClick={() => {
+                    setIsConnectModalOpen(false);
+                    window.location.href = generateOAuthUrl(connectTarget.id);
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    background: connectTarget.color,
+                    border: 'none', 
+                    color: '#fff', 
+                    padding: '0.85rem', 
+                    borderRadius: '12px', 
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: `0 4px 15px ${connectTarget.color}30`,
+                    transition: 'transform 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                >
+                  Real OAuth Connection
+                </button>
+
+                <button 
+                  onClick={() => {
+                    setIsConnectModalOpen(false);
+                    const mockUrl = `/auth/callback?code=mock_code_${Date.now()}&state=${connectTarget.id}`;
+                    navigate(mockUrl);
+                  }}
+                  style={{ 
+                    width: '100%', 
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    border: '1px solid rgba(255, 255, 255, 0.15)', 
+                    color: 'var(--text-primary)', 
+                    padding: '0.85rem', 
+                    borderRadius: '12px', 
+                    fontSize: '0.95rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  Simulated Mock Connection
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
