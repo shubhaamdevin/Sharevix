@@ -20,6 +20,7 @@ export default function LiveCount() {
   const [displayCount, setDisplayCount] = useState(0);
   const [isTicking, setIsTicking] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [simulateFluctuations, setSimulateFluctuations] = useState(false);
   
   // Load connected accounts from LocalStorage
   const checkConnections = () => {
@@ -154,7 +155,7 @@ export default function LiveCount() {
 
   // Live ticking mechanism (YouTube live sub counter style)
   useEffect(() => {
-    if (!isTicking || isLoading) return;
+    if (!isTicking || isLoading || !simulateFluctuations) return;
 
     const interval = setInterval(() => {
       setDisplayCount(prev => {
@@ -170,7 +171,13 @@ export default function LiveCount() {
     }, 2800); // Ticks every 2.8 seconds
 
     return () => clearInterval(interval);
-  }, [isTicking, isLoading]);
+  }, [isTicking, isLoading, simulateFluctuations]);
+
+  useEffect(() => {
+    if (!simulateFluctuations) {
+      setDisplayCount(baseCount);
+    }
+  }, [simulateFluctuations, baseCount]);
 
   const activeDetails = platformDetails[activePlatform];
   const Icon = activeDetails.icon;
@@ -324,6 +331,32 @@ export default function LiveCount() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.6rem 1.5rem', borderRadius: '30px', border: '1px solid var(--panel-border)' }}>
                 <Icon size={24} color={activeDetails.color} />
                 <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{activeDetails.name} Page Live Counter</span>
+              </div>
+
+              {/* Simulation Toggle Switch */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <span style={{ fontSize: '0.85rem', color: simulateFluctuations ? 'var(--text-secondary)' : '#fff', transition: 'color 0.2s', fontWeight: simulateFluctuations ? 400 : 600 }}>Real Value</span>
+                <button 
+                  type="button"
+                  onClick={() => setSimulateFluctuations(!simulateFluctuations)}
+                  style={{
+                    width: '44px', height: '22px', borderRadius: '11px',
+                    background: simulateFluctuations ? 'var(--accent-blue)' : 'rgba(255,255,255,0.1)',
+                    border: 'none', position: 'relative', cursor: 'pointer',
+                    transition: 'background-color 0.2s', padding: 0, outline: 'none'
+                  }}
+                >
+                  <motion.div 
+                    animate={{ x: simulateFluctuations ? 24 : 2 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    style={{
+                      width: '18px', height: '18px', borderRadius: '50%',
+                      background: '#fff', position: 'absolute', top: '2px', left: 0,
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    }}
+                  />
+                </button>
+                <span style={{ fontSize: '0.85rem', color: simulateFluctuations ? 'var(--accent-blue)' : 'var(--text-secondary)', transition: 'color 0.2s', fontWeight: simulateFluctuations ? 600 : 400 }}>Live Simulation</span>
               </div>
 
             </motion.div>
