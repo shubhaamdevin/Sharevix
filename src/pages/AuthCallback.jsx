@@ -56,7 +56,18 @@ export default function AuthCallback() {
           let ytSaved = false;
           let fetchError = null;
 
+          console.log("YouTube connection debug:", {
+            hasHash: !!window.location.hash,
+            hasQueryCode: searchParams.has('code'),
+            tokenPreview: tokenToUse ? (tokenToUse.substring(0, 10) + '...') : null,
+            isCode: tokenToUse && !tokenToUse.startsWith('ya29.')
+          });
+
           try {
+            if (tokenToUse && !tokenToUse.startsWith('ya29.')) {
+              throw new Error("Received an Authorization Code instead of an Access Token. Please ensure your Google Client ID is configured as a 'Single-page application' (SPA) in Google Cloud Console, or that Implicit Flow is enabled.");
+            }
+
             const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, {
               headers: { 'Authorization': `Bearer ${tokenToUse}` }
             });
