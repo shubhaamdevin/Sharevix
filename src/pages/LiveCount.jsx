@@ -211,6 +211,26 @@ export default function LiveCount() {
           zIndex: 1, pointerEvents: 'none'
         }} />
 
+        {isConnected && !isLoading && (
+          <div style={{ 
+            position: 'absolute', top: '20px', right: '24px', 
+            display: 'flex', alignItems: 'center', 
+            background: 'rgba(255, 0, 0, 0.12)', border: '1px solid rgba(255, 0, 0, 0.25)',
+            padding: '4px 10px', borderRadius: '6px', 
+            fontSize: '0.75rem', fontWeight: 800, color: '#ff4d4d', letterSpacing: '0.05em', textTransform: 'uppercase',
+            zIndex: 10
+          }}>
+            <div style={{ position: 'relative', width: '6px', height: '6px', borderRadius: '50%', background: '#ff0000', marginRight: '6px' }}>
+              <div style={{
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                borderRadius: '50%', border: '1px solid #ff0000',
+                animation: 'ripple 1.6s infinite ease-out'
+              }} />
+            </div>
+            Live {activeDetails.type}
+          </div>
+        )}
+
         <AnimatePresence mode="wait">
           {!isConnected ? (
             
@@ -272,31 +292,11 @@ export default function LiveCount() {
             >
               {/* Ticking Numbers Display */}
               <div style={{ 
-                position: 'relative',
                 fontSize: '5.5rem', fontWeight: 900, fontFamily: 'monospace', 
                 color: '#fff', letterSpacing: '-0.02em', textShadow: `0 0 40px ${activeDetails.color}35`,
-                display: 'flex', gap: '2px', padding: '2.5rem 3rem 1.5rem', borderRadius: '24px', 
-                background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.03)',
-                minWidth: '220px', justifyContent: 'center'
+                display: 'flex', gap: '2px', padding: '1rem 2rem', borderRadius: '24px', 
+                background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.03)'
               }}>
-                {/* Positioned Live Badge with Ripple */}
-                <div style={{ 
-                  position: 'absolute', top: '10px', right: '12px', 
-                  display: 'flex', alignItems: 'center', 
-                  background: 'rgba(255, 0, 0, 0.15)', border: '1px solid rgba(255, 0, 0, 0.3)',
-                  padding: '2px 6px', borderRadius: '4px', 
-                  fontSize: '0.65rem', fontWeight: 800, color: '#ff4d4d', letterSpacing: '0.05em', textTransform: 'uppercase'
-                }}>
-                  <div style={{ position: 'relative', width: '6px', height: '6px', borderRadius: '50%', background: '#ff0000', marginRight: '5px' }}>
-                    <div style={{
-                      position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                      borderRadius: '50%', border: '1px solid #ff0000',
-                      animation: 'ripple 1.6s infinite ease-out'
-                    }} />
-                  </div>
-                  Live {activeDetails.type}
-                </div>
-
                 <AnimatePresence mode="popLayout">
                   {displayCount.toLocaleString().split('').map((char, index) => (
                     <motion.span 
