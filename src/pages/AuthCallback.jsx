@@ -53,6 +53,7 @@ export default function AuthCallback() {
         // Auto-fetch pages if connecting facebook or instagram
         if (state === 'facebook' || state === 'instagram') {
           let pagesSaved = false;
+          let fetchError = null;
 
           try {
             // Real Facebook Graph API fetch using access token
@@ -70,15 +71,24 @@ export default function AuthCallback() {
               localStorage.setItem('fb_page_name', pages[0].name);
               localStorage.setItem('fb_access_token', pages[0].access_token);
               pagesSaved = true;
-            } else {
+            } else if (!res.ok) {
+              fetchError = data.error?.message || "Failed to fetch Facebook pages.";
               console.error("Facebook API error:", data);
+            } else if (data.data && data.data.length === 0) {
+              fetchError = "No Facebook Pages found on this account. Make sure you have created a Facebook Page.";
             }
           } catch (err) {
+            fetchError = err.message;
             console.error("Real Graph API page fetch failed:", err);
           }
 
-          // Fallback to mock page info if real API call fails or returns empty pages
           if (!pagesSaved) {
+            setStatus('error');
+            setMessage(`Real Page Connection Failed: ${fetchError}. Connecting in Mock Mode in 5 seconds...`);
+            
+            // Wait 5 seconds so they can read the error
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            
             console.log("Using Mock Page fallback for development/testing");
             const mockPages = [
               { id: '123456789012345', name: 'Mock Business Page', access_token: tokenToUse || 'mock_access_token_123456', category: 'Business' }
