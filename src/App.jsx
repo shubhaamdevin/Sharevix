@@ -24,6 +24,7 @@ import AdminLayout from './components/AdminLayout';
 import { useAuth } from './context/AuthContext';
 import { db, isMock } from './firebase';
 import { dbService } from './services/db';
+import { isFacebookTokenError, disconnectFacebookAndInstagram } from './services/tokenHelper';
 import './index.css';
 
 const ProtectedRoute = ({ children, requireAdmin }) => {
@@ -93,12 +94,19 @@ function App() {
                 if (accountsRes.ok && accountsData.data && accountsData.data.length > 0) {
                   pageId = accountsData.data[0].id;
                   token = accountsData.data[0].access_token;
+                } else if (!accountsRes.ok) {
+                  throw accountsData.error || new Error(accountsData.error?.message || "Failed to query accounts");
                 }
               } catch (err) {
                 console.warn("Auto-resolve failed during schedule check", err);
+                if (isFacebookTokenError(err)) {
+                  disconnectFacebookAndInstagram();
+                  success = false;
+                  errorMessage = "Facebook access token expired or invalid.";
+                }
               }
               
-              if (pageId && token) {
+              if (success && pageId && token) {
                 try {
                   const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}/feed`, {
                     method: 'POST',
@@ -112,12 +120,18 @@ function App() {
                   if (!res.ok) {
                     success = false;
                     errorMessage = resData.error?.message || "FB posting failed";
+                    if (isFacebookTokenError(resData.error || resData)) {
+                      disconnectFacebookAndInstagram();
+                    }
                   }
                 } catch (e) {
                   success = false;
                   errorMessage = e.message;
+                  if (isFacebookTokenError(e)) {
+                    disconnectFacebookAndInstagram();
+                  }
                 }
-              } else {
+              } else if (success) {
                 success = false;
                 errorMessage = "FB Page credentials missing";
               }

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Radio, Users, AlertCircle, Link2, ChevronRight, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, ThreadsIcon, PinterestIcon } from '../components/Icons';
+import { isFacebookTokenError, disconnectFacebookAndInstagram } from '../services/tokenHelper';
 
 const platformDetails = {
   facebook: { name: 'Facebook', icon: FacebookIcon, color: '#1877F2', type: 'Fans' },
@@ -29,6 +30,8 @@ export default function LiveCount() {
 
   useEffect(() => {
     checkConnections();
+    window.addEventListener('accounts-updated', checkConnections);
+    return () => window.removeEventListener('accounts-updated', checkConnections);
   }, []);
 
   const isConnected = connectedPlatforms.includes(activePlatform);
@@ -58,6 +61,8 @@ export default function LiveCount() {
               const data = await res.json();
               if (res.ok && data.data && data.data.length > 0) {
                 pageId = data.data[0].id;
+              } else if (!res.ok) {
+                throw data.error || new Error(data.error?.message || "Failed to query Facebook pages");
               }
             }
             if (pageId) {
@@ -75,10 +80,15 @@ export default function LiveCount() {
                 if (showLoading) setIsLoading(false);
                 setIsTicking(count > 0);
                 return;
+              } else {
+                throw data.error || new Error(data.error?.message || "Failed to query Facebook Page statistics");
               }
             }
           } catch (e) {
-            console.error(e);
+            console.error("Facebook count fetch error:", e);
+            if (isFacebookTokenError(e)) {
+              disconnectFacebookAndInstagram();
+            }
           }
         }
       }
@@ -93,22 +103,31 @@ export default function LiveCount() {
               const data = await res.json();
               if (res.ok && data.data && data.data.length > 0) {
                 pageId = data.data[0].id;
+              } else if (!res.ok) {
+                throw data.error || new Error(data.error?.message || "Failed to query Facebook pages for Instagram");
               }
             }
             if (pageId) {
               const res = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=instagram_business_account{followers_count}&access_token=${token}`);
               const data = await res.json();
-              if (res.ok && data.instagram_business_account) {
-                const count = data.instagram_business_account.followers_count || 0;
-                setBaseCount(count);
-                setDisplayCount(count);
-                if (showLoading) setIsLoading(false);
-                setIsTicking(count > 0);
-                return;
+              if (res.ok) {
+                if (data.instagram_business_account) {
+                  const count = data.instagram_business_account.followers_count || 0;
+                  setBaseCount(count);
+                  setDisplayCount(count);
+                  if (showLoading) setIsLoading(false);
+                  setIsTicking(count > 0);
+                  return;
+                }
+              } else {
+                throw data.error || new Error(data.error?.message || "Failed to query Instagram account statistics");
               }
             }
           } catch (e) {
-            console.error(e);
+            console.error("Instagram count fetch error:", e);
+            if (isFacebookTokenError(e)) {
+              disconnectFacebookAndInstagram();
+            }
           }
         }
       }

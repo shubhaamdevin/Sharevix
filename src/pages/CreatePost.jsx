@@ -6,6 +6,7 @@ import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, Pi
 import { db } from '../firebase';
 import { dbService } from '../services/db';
 import { useAuth } from '../context/AuthContext';
+import { isFacebookTokenError, disconnectFacebookAndInstagram } from '../services/tokenHelper';
 
 const platformDefinitions = [
   { id: 'facebook', name: 'Facebook', icon: FacebookIcon, color: '#1877F2', supportsPolls: true, limit: 63206 },
@@ -1340,8 +1341,14 @@ export default function CreatePost() {
   
   const [allAccounts, setAllAccounts] = useState([]);
   useEffect(() => {
-    const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
-    setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: savedConnections.includes(def.id) })));
+    const loadConnections = () => {
+      const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
+      setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: savedConnections.includes(def.id) })));
+      setSelectedTargets(prev => prev.filter(pId => savedConnections.includes(pId)));
+    };
+    loadConnections();
+    window.addEventListener('accounts-updated', loadConnections);
+    return () => window.removeEventListener('accounts-updated', loadConnections);
   }, []);
 
   const connectedAccounts = allAccounts.filter(a => a.connected);
@@ -1677,14 +1684,17 @@ export default function CreatePost() {
               console.log(`Auto-resolved Page: ${accountsData.data[0].name} (ID: ${pageId})`);
             } else if (!accountsRes.ok) {
               console.error("Failed to query Facebook pages:", accountsData);
-              throw new Error(accountsData.error?.message || "Failed to retrieve Facebook pages associated with this token.");
+              throw accountsData.error || new Error(accountsData.error?.message || "Failed to retrieve Facebook pages associated with this token.");
             } else if (accountsData.data && accountsData.data.length === 0) {
               throw new Error("No Facebook Pages found associated with this Meta User token. API posting only works for Facebook Pages, not personal profiles.");
             }
           } catch (err) {
             console.warn("Auto-resolve warning:", err);
+            if (isFacebookTokenError(err)) {
+              throw err;
+            }
             if (!pageId) {
-              throw new Error(`Facebook page resolution failed: ${err.message}. Please configure a valid Page ID manually.`);
+              throw new Error(`Facebook page resolution failed: ${err.message || err}. Please configure a valid Page ID manually.`);
             }
           }
 
@@ -1750,7 +1760,7 @@ export default function CreatePost() {
             resData = await res.json();
             if (!res.ok) {
               console.error("Facebook API error:", resData);
-              throw new Error(resData.error?.message || "Failed to publish to Facebook Graph API");
+              throw resData.error || new Error(resData.error?.message || "Failed to publish to Facebook Graph API");
             }
           }
           console.log("Published successfully to Facebook Page API!", resData);
@@ -1763,7 +1773,11 @@ export default function CreatePost() {
             console.log("Facebook API failed, falling back to simulated success for testing");
             postData.fb_post_id = `simulated_fb_post_${Date.now()}`;
           } else {
-            throw new Error(`Facebook API posting failed: ${fbApiErr.message}`);
+            if (isFacebookTokenError(fbApiErr)) {
+              disconnectFacebookAndInstagram();
+              throw new Error("Your Facebook session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.");
+            }
+            throw new Error(`Facebook API posting failed: ${fbApiErr.message || fbApiErr}`);
           }
         }
       }
@@ -1785,9 +1799,15 @@ export default function CreatePost() {
             if (accountsRes.ok && accountsData.data && accountsData.data.length > 0) {
               pageId = accountsData.data[0].id;
               token = accountsData.data[0].access_token;
+            } else if (!accountsRes.ok) {
+              throw accountsData.error || new Error(accountsData.error?.message || "Failed to query Facebook pages");
             }
           } catch (err) {
             console.warn("Auto-resolve Page ID failed:", err);
+            if (isFacebookTokenError(err)) {
+              disconnectFacebookAndInstagram();
+              throw new Error("Your Facebook/Instagram session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.");
+            }
           }
         }
 
@@ -1813,6 +1833,8 @@ export default function CreatePost() {
                 if (pageRes.ok && pageData.instagram_business_account) {
                   igBusinessAccountId = pageData.instagram_business_account.id;
                   localStorage.setItem('ig_business_account_id', igBusinessAccountId);
+                } else if (!pageRes.ok) {
+                  throw pageData.error || new Error(pageData.error?.message || "Failed to resolve Instagram account");
                 } else {
                   console.warn("No real linked Instagram Business Account. Falling back to mock ID.");
                   igBusinessAccountId = '987654321098765';
@@ -1822,6 +1844,9 @@ export default function CreatePost() {
               }
             } catch (err) {
               console.warn("Failed to resolve Instagram Business Account, using mock:", err);
+              if (isFacebookTokenError(err)) {
+                throw err;
+              }
               igBusinessAccountId = '987654321098765';
               localStorage.setItem('ig_business_account_id', igBusinessAccountId);
               isInstagramMock = true;
@@ -1854,7 +1879,7 @@ export default function CreatePost() {
             const containerRes = await fetch(containerUrl, { method: 'POST' });
             const containerData = await containerRes.json();
             if (!containerRes.ok) {
-              throw new Error(containerData.error?.message || "Failed to create Instagram media container.");
+              throw containerData.error || new Error(containerData.error?.message || "Failed to create Instagram media container.");
             }
 
             const containerId = containerData.id;
@@ -1867,6 +1892,9 @@ export default function CreatePost() {
                 await new Promise(r => setTimeout(r, 5000));
                 const statusRes = await fetch(`https://graph.facebook.com/v18.0/${containerId}?fields=status_code&access_token=${token}`);
                 const statusData = await statusRes.json();
+                if (!statusRes.ok) {
+                  throw statusData.error || new Error(statusData.error?.message || "Failed to check Instagram video status");
+                }
                 status = statusData.status_code;
                 retries++;
               }
@@ -1879,7 +1907,7 @@ export default function CreatePost() {
             const publishRes = await fetch(`https://graph.facebook.com/v18.0/${igBusinessAccountId}/media_publish?creation_id=${containerId}&access_token=${token}`, { method: 'POST' });
             const publishData = await publishRes.json();
             if (!publishRes.ok) {
-              throw new Error(publishData.error?.message || "Failed to publish Instagram media container.");
+              throw publishData.error || new Error(publishData.error?.message || "Failed to publish Instagram media container.");
             }
 
             console.log("Published successfully to Instagram!", publishData);
@@ -1893,7 +1921,11 @@ export default function CreatePost() {
             console.log("Instagram API failed, falling back to simulated success for testing");
             postData.ig_post_id = `simulated_ig_post_${Date.now()}`;
           } else {
-            throw new Error(`Instagram API posting failed: ${igApiErr.message}`);
+            if (isFacebookTokenError(igApiErr)) {
+              disconnectFacebookAndInstagram();
+              throw new Error("Your Facebook/Instagram session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.");
+            }
+            throw new Error(`Instagram API posting failed: ${igApiErr.message || igApiErr}`);
           }
         }
       }

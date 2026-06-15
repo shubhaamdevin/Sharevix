@@ -32,8 +32,14 @@ export default function Accounts() {
   const [selectedPageId, setSelectedPageId] = useState(() => localStorage.getItem('fb_page_id') || '');
   
   useEffect(() => {
-    const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
-    setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: savedConnections.includes(def.id) })));
+    const loadAccounts = () => {
+      const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
+      setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: savedConnections.includes(def.id) })));
+      setSelectedPageId(localStorage.getItem('fb_page_id') || '');
+    };
+    loadAccounts();
+    window.addEventListener('accounts-updated', loadAccounts);
+    return () => window.removeEventListener('accounts-updated', loadAccounts);
   }, []);
 
   const handleAccountConnect = (acc) => {
