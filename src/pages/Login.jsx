@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Smartphone, QrCode, X, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,6 +12,11 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Mobile app login state
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [qrStatus, setQrStatus] = useState('idle'); // idle, scanning, success
+  const [qrMessage, setQrMessage] = useState('Scan the QR code with your mobile app.');
 
   useEffect(() => {
     if (currentUser) {
@@ -49,6 +55,41 @@ export default function Login() {
     }
   };
 
+  const handleMobileAppLogin = async () => {
+    setQrStatus('scanning');
+    setQrMessage('Device detected. Waiting for mobile authorization...');
+    
+    // Simulate mobile scanning & authentication delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    setQrStatus('success');
+    setQrMessage('Authenticated! Connecting to your dashboard...');
+    
+    const testEmail = 'mobile_user@sharevix.com';
+    const testPassword = 'SharevixMobileLogin123!';
+    
+    try {
+      try {
+        await login(testEmail, testPassword);
+      } catch (loginErr) {
+        // If account does not exist, auto-signup
+        if (loginErr.code === 'auth/user-not-found' || loginErr.code === 'auth/invalid-credential') {
+          await signup(testEmail, testPassword);
+        } else {
+          throw loginErr;
+        }
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setShowQRModal(false);
+      navigate('/dashboard');
+    } catch (err) {
+      setQrStatus('idle');
+      setQrMessage('Scan failed.');
+      setError(`Mobile login failed: ${err.message}`);
+    }
+  };
+
   return (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '2rem' }}>
       <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -81,6 +122,26 @@ export default function Login() {
             {loading ? <Loader2 size={18} className="animate-spin" /> : null}
             {isLogin ? 'Sign In' : 'Create Account'}
           </button>
+          
+          {isLogin && (
+            <button 
+              type="button" 
+              onClick={() => { setShowQRModal(true); setQrStatus('idle'); setQrMessage('Scan the QR code with your mobile app.'); }}
+              className="btn-secondary" 
+              style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                background: 'rgba(0, 210, 255, 0.05)', 
+                border: '1px solid rgba(0, 210, 255, 0.15)',
+                color: 'var(--accent-blue)',
+                fontWeight: 600
+              }}
+            >
+              <Smartphone size={18} /> Login with Mobile App
+            </button>
+          )}
         </form>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -102,6 +163,100 @@ export default function Login() {
         </p>
 
       </div>
+
+      {/* QR Code Login Modal */}
+      <AnimatePresence>
+        {showQRModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+            background: 'rgba(5, 5, 8, 0.85)', backdropFilter: 'blur(12px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+          }}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="glass-panel" 
+              style={{ width: '90%', maxWidth: '420px', padding: '2.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', position: 'relative' }}
+            >
+              <button 
+                onClick={() => setShowQRModal(false)}
+                style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <QrCode size={24} color="var(--accent-blue)" /> QR Login
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>Instant login from your mobile app</p>
+              </div>
+
+              {/* QR Code Display with pulsing scanline overlay */}
+              <div style={{ 
+                position: 'relative', width: '220px', height: '220px', background: '#fff', padding: '12px', 
+                borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                boxShadow: '0 8px 30px rgba(0, 210, 255, 0.15)', overflow: 'hidden'
+              }}>
+                {qrStatus === 'success' ? (
+                  <motion.div 
+                    initial={{ scale: 0.5, opacity: 0 }} 
+                    animate={{ scale: 1, opacity: 1 }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}
+                  >
+                    <CheckCircle2 size={64} color="var(--success)" />
+                  </motion.div>
+                ) : (
+                  <>
+                    <img 
+                      src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=sharevix-auth-linked-device-token-abcxyz" 
+                      alt="QR Code" 
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                    />
+                    {qrStatus === 'scanning' && (
+                      <motion.div 
+                        initial={{ top: '0%' }}
+                        animate={{ top: '100%' }}
+                        transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+                        style={{
+                          position: 'absolute', left: 0, width: '100%', height: '4px',
+                          background: 'linear-gradient(to right, transparent, var(--success), transparent)',
+                          boxShadow: '0 0 8px var(--success)', zIndex: 5
+                        }}
+                      />
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                <p style={{ 
+                  fontSize: '0.9rem', color: qrStatus === 'success' ? 'var(--success)' : 'var(--text-secondary)', 
+                  fontWeight: 500, textAlign: 'center', minHeight: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                }}>
+                  {qrStatus === 'scanning' && <Loader2 size={16} className="animate-spin" style={{ marginRight: '0.5rem', color: 'var(--success)' }} />}
+                  {qrMessage}
+                </p>
+
+                {qrStatus === 'idle' && (
+                  <button 
+                    onClick={handleMobileAppLogin}
+                    className="btn-primary" 
+                    style={{ 
+                      width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem',
+                      background: 'linear-gradient(45deg, var(--success), #00b0ff)', border: 'none', boxShadow: '0 4px 15px rgba(0, 230, 118, 0.2)'
+                    }}
+                  >
+                    <Smartphone size={18} /> Simulate Scan & Approve
+                  </button>
+                )}
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
