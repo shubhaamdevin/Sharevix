@@ -6,7 +6,7 @@ import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, Pi
 import { db } from '../firebase';
 import { dbService } from '../services/db';
 import { useAuth } from '../context/AuthContext';
-import { isFacebookTokenError, disconnectFacebookAndInstagram } from '../services/tokenHelper';
+import { isFacebookTokenError, disconnectFacebookAndInstagram, isGoogleTokenError, disconnectYouTube } from '../services/tokenHelper';
 
 const platformDefinitions = [
   { id: 'facebook', name: 'Facebook', icon: FacebookIcon, color: '#1877F2', supportsPolls: true, limit: 63206 },
@@ -1631,9 +1631,9 @@ export default function CreatePost() {
     
     try {
       if (status === 'published') {
-        const unsupportedTargets = selectedTargets.filter(t => t === 'youtube' || t === 'x' || t === 'threads');
+        const unsupportedTargets = selectedTargets.filter(t => t === 'x' || t === 'threads');
         if (unsupportedTargets.length > 0) {
-          throw new Error(`Real API posting is not yet integrated for: ${unsupportedTargets.map(t => t === 'x' ? 'X (Twitter)' : t.charAt(0).toUpperCase() + t.slice(1)).join(', ')}. Only Facebook and Instagram support live publishing.`);
+          throw new Error(`Real API posting is not yet integrated for: ${unsupportedTargets.map(t => t === 'x' ? 'X (Twitter)' : t.charAt(0).toUpperCase() + t.slice(1)).join(', ')}. Only Facebook, Instagram, and YouTube support live publishing.`);
         }
       }
       let publishDate = new Date().toISOString();
@@ -1955,6 +1955,92 @@ export default function CreatePost() {
             }
             throw new Error(`Instagram API posting failed: ${igApiErr.message || igApiErr}`);
           }
+        }
+      }
+
+      // Direct Real-time YouTube API Uploading
+      if (status === 'published' && selectedTargets.includes('youtube')) {
+        const token = localStorage.getItem('youtube_access_token');
+        if (!token) {
+          throw new Error("YouTube Access Token is missing. Please connect your YouTube account under Accounts page.");
+        }
+
+        try {
+          const ytContent = getPlatformContent('youtube');
+          const ytMedia = getPlatformMedia('youtube');
+
+          if (ytMedia.length === 0) {
+            throw new Error("YouTube requires at least one video to publish.");
+          }
+
+          const file = ytMedia[0];
+          const fileBlob = file.rawFile || (await fetch(file.url).then(r => r.blob()));
+
+          if (!fileBlob.type.startsWith('video')) {
+            throw new Error("YouTube only supports video uploads. Please select a video file.");
+          }
+
+          // Construct YouTube video metadata
+          const metadata = {
+            snippet: {
+              title: ytContent.title || "Uploaded via Sharevix",
+              description: ytContent.description || "",
+              categoryId: "22" // People & Blogs
+            },
+            status: {
+              privacyStatus: "public"
+            }
+          };
+
+          // Build Google multipart upload request
+          const boundary = '-------314159265358979323846';
+          const delimiter = "\r\n--" + boundary + "\r\n";
+          const close_delim = "\r\n--" + boundary + "--";
+
+          const reader = new FileReader();
+          const fileDataPromise = new Promise((resolve) => {
+            reader.onload = () => resolve(reader.result);
+            reader.readAsArrayBuffer(fileBlob);
+          });
+          const fileBytes = await fileDataPromise;
+
+          const metadataPart = 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + '\r\n';
+          const mediaHeader = 'Content-Type: ' + fileBlob.type + '\r\n' + 'Content-Transfer-Encoding: base64\r\n\r\n';
+          
+          const base64Data = btoa(
+            new Uint8Array(fileBytes).reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+
+          const multipartBody = delimiter + metadataPart + delimiter + mediaHeader + base64Data + close_delim;
+
+          const uploadRes = await fetch(
+            'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status',
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'multipart/related; boundary=' + boundary
+              },
+              body: multipartBody
+            }
+          );
+
+          const uploadData = await uploadRes.json();
+          if (!uploadRes.ok) {
+            throw uploadData.error || new Error(uploadData.error?.message || "Failed to upload video to YouTube.");
+          }
+
+          console.log("Published successfully to YouTube!", uploadData);
+          if (uploadData.id) {
+            postData.yt_post_id = uploadData.id;
+          }
+        } catch (ytApiErr) {
+          console.error("YouTube API error:", ytApiErr);
+          if (isGoogleTokenError(ytApiErr)) {
+            disconnectYouTube();
+            throw new Error("Your YouTube session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.");
+          }
+          throw new Error(`YouTube upload failed: ${ytApiErr.message || ytApiErr}`);
         }
       }
 

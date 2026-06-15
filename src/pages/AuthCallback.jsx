@@ -51,6 +51,42 @@ export default function AuthCallback() {
           localStorage.setItem('connectedAccounts', JSON.stringify(connectedAccounts));
         }
 
+        // Auto-fetch details if connecting youtube
+        if (state === 'youtube') {
+          let ytSaved = false;
+          let fetchError = null;
+
+          try {
+            const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, {
+              headers: { 'Authorization': `Bearer ${tokenToUse}` }
+            });
+            const ytData = await ytRes.json();
+            if (ytRes.ok && ytData.items && ytData.items.length > 0) {
+              const channel = ytData.items[0];
+              localStorage.setItem('youtube_channel_id', channel.id);
+              localStorage.setItem('youtube_channel_name', channel.snippet.title);
+              localStorage.setItem('youtube_access_token', tokenToUse);
+              localStorage.setItem('youtube_username', channel.snippet.customUrl || channel.snippet.title);
+              localStorage.setItem('youtube_subscribers', channel.statistics.subscriberCount || '0');
+              ytSaved = true;
+            } else if (!ytRes.ok) {
+              fetchError = ytData.error?.message || "Failed to query YouTube API";
+            } else {
+              fetchError = "No YouTube Channel found on this Google account. Please create a channel first.";
+            }
+          } catch (err) {
+            fetchError = err.message;
+            console.error("YouTube Channel fetch failed:", err);
+          }
+
+          if (!ytSaved) {
+            setStatus('error');
+            setMessage(`YouTube Connection Failed: ${fetchError}. Please make sure you have a YouTube Channel created on your account.`);
+            setTimeout(() => navigate('/accounts'), 5000);
+            return;
+          }
+        }
+
         // Auto-fetch pages if connecting facebook or instagram
         if (state === 'facebook' || state === 'instagram') {
           let pagesSaved = false;

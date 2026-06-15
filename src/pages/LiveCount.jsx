@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Radio, Users, AlertCircle, Link2, ChevronRight, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, ThreadsIcon, PinterestIcon } from '../components/Icons';
-import { isFacebookTokenError, disconnectFacebookAndInstagram } from '../services/tokenHelper';
+import { isFacebookTokenError, disconnectFacebookAndInstagram, isGoogleTokenError, disconnectYouTube } from '../services/tokenHelper';
 
 const platformDetails = {
   facebook: { name: 'Facebook', icon: FacebookIcon, color: '#1877F2', type: 'Fans' },
@@ -127,6 +127,33 @@ export default function LiveCount() {
             console.error("Instagram count fetch error:", e);
             if (isFacebookTokenError(e)) {
               disconnectFacebookAndInstagram();
+            }
+          }
+        }
+      }
+
+      if (activePlatform === 'youtube') {
+        const token = localStorage.getItem('youtube_access_token');
+        if (token) {
+          try {
+            const res = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=statistics&mine=true`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.items && data.items.length > 0) {
+              const count = parseInt(data.items[0].statistics.subscriberCount) || 0;
+              setBaseCount(count);
+              setDisplayCount(count);
+              if (showLoading) setIsLoading(false);
+              setIsTicking(count > 0);
+              return;
+            } else if (!res.ok) {
+              throw data.error || new Error(data.error?.message || "Failed to query YouTube API");
+            }
+          } catch (e) {
+            console.error("YouTube LiveCount error:", e);
+            if (isGoogleTokenError(e)) {
+              disconnectYouTube();
             }
           }
         }

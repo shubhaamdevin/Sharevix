@@ -1,5 +1,5 @@
 /**
- * Utility functions for detecting Meta/Facebook API credential expiration or invalidation
+ * Utility functions for detecting Meta/Facebook & Google/YouTube API credential expiration or invalidation
  * and handling automatic cleanup of local accounts/tokens.
  */
 
@@ -39,7 +39,7 @@ export const disconnectFacebookAndInstagram = () => {
   localStorage.removeItem('instagram_username');
 
   // Retrieve existing connection list and remove facebook/instagram
-  const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
+  const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
   const newConnections = savedConnections.filter(id => id !== 'facebook' && id !== 'instagram');
   localStorage.setItem('connectedAccounts', JSON.stringify(newConnections));
 
@@ -51,6 +51,46 @@ export const disconnectFacebookAndInstagram = () => {
     detail: { 
       type: 'error', 
       message: 'Your Facebook session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.' 
+    } 
+  }));
+};
+
+export const isGoogleTokenError = (error) => {
+  if (!error) return false;
+  const code = error.code || error.error?.code;
+  const errMsg = error.message || error.error?.message || (typeof error === 'string' ? error : '');
+  if (code === 401 || code === 403) return true;
+  const lowerMsg = errMsg.toLowerCase();
+  return (
+    lowerMsg.includes('invalid credentials') ||
+    lowerMsg.includes('expired') ||
+    lowerMsg.includes('auth error') ||
+    lowerMsg.includes('unauthorized') ||
+    lowerMsg.includes('token is invalid')
+  );
+};
+
+export const disconnectYouTube = () => {
+  // Clear YouTube credentials
+  localStorage.removeItem('youtube_channel_id');
+  localStorage.removeItem('youtube_channel_name');
+  localStorage.removeItem('youtube_access_token');
+  localStorage.removeItem('youtube_username');
+  localStorage.removeItem('youtube_subscribers');
+
+  // Retrieve existing connection list and remove youtube
+  const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
+  const newConnections = savedConnections.filter(id => id !== 'youtube');
+  localStorage.setItem('connectedAccounts', JSON.stringify(newConnections));
+
+  // Trigger page / state reloads across listeners
+  window.dispatchEvent(new CustomEvent('accounts-updated'));
+
+  // Notify the user via a global notification toast
+  window.dispatchEvent(new CustomEvent('show-notification', { 
+    detail: { 
+      type: 'error', 
+      message: 'Your YouTube session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.' 
     } 
   }));
 };

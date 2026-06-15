@@ -32,7 +32,11 @@ export default function Accounts() {
   const [selectedPageId, setSelectedPageId] = useState(() => localStorage.getItem('fb_page_id') || '');
   
   const isPlatformMock = (id) => {
-    if (id === 'youtube' || id === 'x' || id === 'threads') return true;
+    if (id === 'x' || id === 'threads') return true;
+    if (id === 'youtube') {
+      const token = localStorage.getItem('youtube_access_token');
+      return !token;
+    }
     if (id === 'facebook') {
       const pageId = localStorage.getItem('fb_page_id');
       const token = localStorage.getItem('fb_access_token');
@@ -87,6 +91,13 @@ export default function Accounts() {
       localStorage.removeItem('ig_business_account_id');
       localStorage.removeItem('instagram_username');
     }
+    if (disconnectTarget.id === 'youtube') {
+      localStorage.removeItem('youtube_channel_id');
+      localStorage.removeItem('youtube_channel_name');
+      localStorage.removeItem('youtube_access_token');
+      localStorage.removeItem('youtube_username');
+      localStorage.removeItem('youtube_subscribers');
+    }
 
     window.dispatchEvent(new CustomEvent('show-notification', { 
       detail: { type: 'success', message: `${disconnectTarget.name} disconnected successfully` } 
@@ -138,6 +149,7 @@ export default function Accounts() {
                           <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
                             Connected {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
                             {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
+                            {acc.id === 'youtube' && localStorage.getItem('youtube_channel_name') ? `(${localStorage.getItem('youtube_channel_name')})` : ''}
                           </div>
                         )}
                       </div>

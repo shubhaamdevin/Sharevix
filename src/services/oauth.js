@@ -21,7 +21,7 @@ export const generateOAuthUrl = (platformId) => {
       return `https://www.tiktok.com/v2/auth/authorize/?client_key=${import.meta.env.VITE_TIKTOK_CLIENT_ID}&response_type=code&scope=video.upload,video.publish&redirect_uri=${redirectUri}&state=${state}`;
 
     case 'youtube':
-      return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${import.meta.env.VITE_YOUTUBE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=https://www.googleapis.com/auth/youtube.upload&state=${state}`;
+      return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${import.meta.env.VITE_YOUTUBE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=https://www.googleapis.com/auth/youtube.upload%20https://www.googleapis.com/auth/youtube.readonly&state=${state}`;
       
     case 'pinterest':
       return `https://www.pinterest.com/oauth/?client_id=${import.meta.env.VITE_PINTEREST_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=boards:read,pins:read,pins:write&state=${state}`;
