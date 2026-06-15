@@ -24,7 +24,7 @@ export default function LiveCount() {
   
   // Load connected accounts from LocalStorage
   const checkConnections = () => {
-    const saved = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
+    const saved = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
     setConnectedPlatforms(saved);
   };
 

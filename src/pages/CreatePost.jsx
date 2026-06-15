@@ -1379,7 +1379,7 @@ export default function CreatePost() {
   
   const [selectedTargets, setSelectedTargets] = useState(() => {
     if (editPost) return editPost.platforms || [];
-    return JSON.parse(localStorage.getItem('connectedAccounts') || '["instagram"]');
+    return JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
   });
   
   const [contentType, setContentType] = useState(() => {
@@ -1630,6 +1630,12 @@ export default function CreatePost() {
     setIsPublishing(true);
     
     try {
+      if (status === 'published') {
+        const unsupportedTargets = selectedTargets.filter(t => t === 'youtube' || t === 'x' || t === 'threads');
+        if (unsupportedTargets.length > 0) {
+          throw new Error(`Real API posting is not yet integrated for: ${unsupportedTargets.map(t => t === 'x' ? 'X (Twitter)' : t.charAt(0).toUpperCase() + t.slice(1)).join(', ')}. Only Facebook and Instagram support live publishing.`);
+        }
+      }
       let publishDate = new Date().toISOString();
       if (status === 'scheduled' && scheduleDate && scheduleTime) {
         publishDate = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
@@ -1737,8 +1743,7 @@ export default function CreatePost() {
 
           let resData;
           if (pageId === '123456789012345' || token.startsWith('mock_')) {
-            console.log("Simulating Facebook post success for Mock Page");
-            resData = { id: `mock_fb_post_${Date.now()}` };
+            throw new Error("Facebook is connected in Mock/Sandbox simulation. Please reconnect your real Facebook Page under Accounts page.");
           } else {
             let res;
             if (editPost && editPost.fb_post_id) {
@@ -1878,8 +1883,7 @@ export default function CreatePost() {
           }
 
           if (isInstagramMock || igBusinessAccountId === '987654321098765') {
-            console.log("Simulating Instagram post success for Mock Page/Account");
-            postData.ig_post_id = `mock_ig_post_${Date.now()}`;
+            throw new Error("Instagram is connected in Mock/Sandbox simulation. Please reconnect your real Instagram Business Account under Accounts page.");
           } else {
             // Real Instagram Publishing
             const igMedia = getPlatformMedia('instagram');
@@ -2471,11 +2475,11 @@ export default function CreatePost() {
 
             {getMockTargets().length > 0 && (
               <div style={{ 
-                background: 'rgba(255, 171, 0, 0.05)', 
-                border: '1px solid rgba(255, 171, 0, 0.2)', 
+                background: 'rgba(239, 68, 68, 0.05)', 
+                border: '1px solid rgba(239, 68, 68, 0.2)', 
                 padding: '1rem', 
                 borderRadius: '12px', 
-                color: '#ffb300', 
+                color: '#ef4444', 
                 fontSize: '0.85rem', 
                 lineHeight: '1.4', 
                 display: 'flex', 
@@ -2485,10 +2489,10 @@ export default function CreatePost() {
               }}>
                 <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
                 <div>
-                  <strong>Sandbox Mock Mode active for: {getMockTargets().join(', ')}.</strong>
+                  <strong>Real API Posting Required: {getMockTargets().join(', ')}.</strong>
                   <div style={{ opacity: 0.85, marginTop: '0.25rem' }}>
-                    Posts to these targets will be simulated inside the web app dashboard history but will not publish to live channels. 
-                    {getMockTargets().some(t => t === 'Facebook' || t === 'Instagram') && " Connect your real Meta Page on the Accounts page to disable simulation."}
+                    {getMockTargets().some(t => t === 'YouTube' || t === 'X (Twitter)' || t === 'Threads') && "YouTube, X, and Threads are currently not integrated with live posting APIs. "}
+                    {getMockTargets().some(t => t === 'Facebook' || t === 'Instagram') && "Facebook and Instagram are connected in simulation mode. Please connect your real Page on the Accounts page to enable publishing."}
                   </div>
                 </div>
               </div>

@@ -49,7 +49,7 @@ export default function Accounts() {
   
   useEffect(() => {
     const loadAccounts = () => {
-      const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
+      const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
       setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: savedConnections.includes(def.id) })));
       setSelectedPageId(localStorage.getItem('fb_page_id') || '');
     };
