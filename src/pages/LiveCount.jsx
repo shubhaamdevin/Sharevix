@@ -270,24 +270,33 @@ export default function LiveCount() {
               exit={{ opacity: 0, scale: 0.95 }}
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2rem', zIndex: 5 }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', justifyContent: 'center' }}>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {/* Blinking Live Indicator */}
-                  <div style={{ position: 'absolute', width: '10px', height: '10px', borderRadius: '50%', background: '#ff1744', left: '-20px', animation: 'pulse 1.5s infinite' }}></div>
-                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                    Live {activeDetails.type}
-                  </span>
-                </div>
-                {/* Real API Connection Status */}
-              </div>
-
               {/* Ticking Numbers Display */}
               <div style={{ 
+                position: 'relative',
                 fontSize: '5.5rem', fontWeight: 900, fontFamily: 'monospace', 
                 color: '#fff', letterSpacing: '-0.02em', textShadow: `0 0 40px ${activeDetails.color}35`,
-                display: 'flex', gap: '2px', padding: '1rem 2rem', borderRadius: '24px', 
-                background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.03)'
+                display: 'flex', gap: '2px', padding: '2.5rem 3rem 1.5rem', borderRadius: '24px', 
+                background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.03)',
+                minWidth: '220px', justifyContent: 'center'
               }}>
+                {/* Positioned Live Badge with Ripple */}
+                <div style={{ 
+                  position: 'absolute', top: '10px', right: '12px', 
+                  display: 'flex', alignItems: 'center', 
+                  background: 'rgba(255, 0, 0, 0.15)', border: '1px solid rgba(255, 0, 0, 0.3)',
+                  padding: '2px 6px', borderRadius: '4px', 
+                  fontSize: '0.65rem', fontWeight: 800, color: '#ff4d4d', letterSpacing: '0.05em', textTransform: 'uppercase'
+                }}>
+                  <div style={{ position: 'relative', width: '6px', height: '6px', borderRadius: '50%', background: '#ff0000', marginRight: '5px' }}>
+                    <div style={{
+                      position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                      borderRadius: '50%', border: '1px solid #ff0000',
+                      animation: 'ripple 1.6s infinite ease-out'
+                    }} />
+                  </div>
+                  Live {activeDetails.type}
+                </div>
+
                 <AnimatePresence mode="popLayout">
                   {displayCount.toLocaleString().split('').map((char, index) => (
                     <motion.span 
@@ -317,12 +326,16 @@ export default function LiveCount() {
         </AnimatePresence>
       </div>
 
-      {/* Pulse Keyframe Animation Styles */}
+      {/* Pulse & Ripple Keyframe Animation Styles */}
       <style>{`
         @keyframes pulse {
           0% { transform: scale(0.9); opacity: 0.5; }
           50% { transform: scale(1.2); opacity: 1; }
           100% { transform: scale(0.9); opacity: 0.5; }
+        }
+        @keyframes ripple {
+          0% { transform: scale(1); opacity: 0.8; }
+          100% { transform: scale(2.8); opacity: 0; }
         }
       `}</style>
     </div>
