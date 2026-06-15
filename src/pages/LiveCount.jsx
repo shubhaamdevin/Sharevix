@@ -145,10 +145,10 @@ export default function LiveCount() {
     // Initial fetch
     fetchBaseCount(true);
 
-    // Poll for live API updates every 10 seconds
+    // Poll for live API updates every 5 seconds
     const interval = setInterval(() => {
       fetchBaseCount(false);
-    }, 10000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [activePlatform, connectedPlatforms]);
