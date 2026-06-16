@@ -34,37 +34,55 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', flex: 1 }}>
           {adminNavItems.map((item) => (
             <NavLink key={item.path} to={item.path} end={item.end} style={({isActive}) => ({
-              display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '12px',
-              textDecoration: 'none', color: isActive ? '#fff' : 'var(--text-secondary)',
-              background: isActive ? 'rgba(156, 39, 176, 0.15)' : 'transparent',
-              border: isActive ? '1px solid var(--accent-purple)' : '1px solid transparent',
-              transition: 'all 0.2s', fontWeight: isActive ? 600 : 500
+              display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.8rem 1rem', borderRadius: '10px',
+              textDecoration: 'none', color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+              background: isActive ? 'rgba(99, 102, 241, 0.08)' : 'transparent',
+              border: isActive ? '1px solid rgba(99, 102, 241, 0.15)' : '1px solid transparent',
+              transition: 'all 0.15s ease', fontWeight: isActive ? 600 : 500,
+              fontSize: '0.9rem'
             })}>
-              <item.icon size={20} /> {item.label}
+              <item.icon size={18} /> {item.label}
             </NavLink>
           ))}
 
-          <div style={{ height: '1px', background: 'var(--panel-border)', margin: '1rem 0' }}></div>
+          <div style={{ height: '1px', background: 'var(--panel-border)', margin: '0.75rem 0' }}></div>
 
           <NavLink to="/dashboard" style={{
-            display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '12px',
+            display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.8rem 1rem', borderRadius: '10px',
             textDecoration: 'none', color: 'var(--text-secondary)',
             background: 'transparent',
             border: '1px solid transparent',
-            transition: 'all 0.2s', fontWeight: 500
+            transition: 'all 0.15s ease', fontWeight: 500, fontSize: '0.9rem'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+            e.currentTarget.style.color = 'var(--text-primary)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent';
+            e.currentTarget.style.color = 'var(--text-secondary)';
           }}>
-            <ArrowLeft size={20} /> Back to App
+            <ArrowLeft size={18} /> Back to App
           </NavLink>
         </nav>
 
         <button onClick={handleLogout} style={{
-          display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', borderRadius: '12px',
-          background: 'transparent', border: '1px solid transparent', color: 'var(--text-secondary)', cursor: 'pointer', textAlign: 'left', marginTop: 'auto'
+          display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.8rem 1rem', borderRadius: '10px',
+          background: 'transparent', border: '1px solid transparent', color: 'var(--text-secondary)', cursor: 'pointer', textAlign: 'left', marginTop: 'auto',
+          fontSize: '0.9rem', width: '100%', transition: 'all 0.15s ease'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 61, 0, 0.05)';
+          e.currentTarget.style.color = 'var(--error)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'transparent';
+          e.currentTarget.style.color = 'var(--text-secondary)';
         }}>
-          <LogOut size={20} /> Logout
+          <LogOut size={18} /> Logout
         </button>
       </aside>
 

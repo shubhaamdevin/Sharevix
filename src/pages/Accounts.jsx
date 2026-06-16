@@ -35,7 +35,7 @@ export default function Accounts() {
     if (id === 'x' || id === 'threads') return true;
     if (id === 'youtube') {
       const token = localStorage.getItem('youtube_access_token');
-      return !token;
+      return !token || token.startsWith('mock_');
     }
     if (id === 'facebook') {
       const pageId = localStorage.getItem('fb_page_id');
@@ -143,7 +143,9 @@ export default function Accounts() {
                         <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{acc.name}</div>
                         {isPlatformMock(acc.id) ? (
                           <div style={{ fontSize: '0.85rem', color: '#ffb300', fontWeight: 500 }}>
-                            Connected (Mock Simulation)
+                            Connected (Mock Simulation) {acc.id === 'youtube' && localStorage.getItem('youtube_channel_name') ? `(${localStorage.getItem('youtube_channel_name')})` : ''}
+                            {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
+                            {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
                           </div>
                         ) : (
                           <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>

@@ -39,10 +39,15 @@ const ProtectedRoute = ({ children, requireAdmin }) => {
 const Toast = ({ notification, onClose }) => {
   if (!notification) return null;
   return (
-    <motion.div initial={{ opacity: 0, y: -50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -20, scale: 0.9 }} 
-      style={{ position: 'fixed', top: '2rem', right: '2rem', zIndex: 9999, background: 'var(--panel-bg)', backdropFilter: 'blur(20px)', border: '1px solid var(--panel-border)', padding: '1rem 1.5rem', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '1rem', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-      {notification.type === 'success' ? <CheckCircle2 color="var(--success)" size={24} /> : <AlertCircle color="var(--error)" size={24} />}
-      <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{notification.message}</div>
+    <motion.div initial={{ opacity: 0, y: -20, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.95 }} 
+      style={{ 
+        position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 9999, 
+        background: 'var(--panel-bg)', backdropFilter: 'blur(20px)', border: '1px solid var(--panel-border)', 
+        padding: '0.75rem 1.25rem', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '0.75rem', 
+        boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)' 
+      }}>
+      {notification.type === 'success' ? <CheckCircle2 color="var(--success)" size={20} /> : <AlertCircle color="var(--error)" size={20} />}
+      <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.875rem' }}>{notification.message}</div>
     </motion.div>
   );
 };

@@ -734,7 +734,7 @@ export default function CreatePost() {
           {media.length > 1 && (
             <div style={{ position: 'absolute', bottom: '1rem', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '4px', zIndex: 5 }}>
               {media.map((_, i) => (
-                <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: i === currentImageIndex ? '#00d2ff' : 'rgba(255,255,255,0.5)' }}></div>
+                <div key={i} style={{ width: '6px', height: '6px', borderRadius: '50%', background: i === currentImageIndex ? 'var(--accent-blue)' : 'rgba(255,255,255,0.5)' }}></div>
               ))}
             </div>
           )}
@@ -1992,26 +1992,27 @@ export default function CreatePost() {
             }
           };
 
-          // Build Google multipart upload request
+           // Build Google multipart upload request
           const boundary = '-------314159265358979323846';
           const delimiter = "\r\n--" + boundary + "\r\n";
           const close_delim = "\r\n--" + boundary + "--";
 
-          const reader = new FileReader();
-          const fileDataPromise = new Promise((resolve) => {
-            reader.onload = () => resolve(reader.result);
-            reader.readAsArrayBuffer(fileBlob);
-          });
-          const fileBytes = await fileDataPromise;
-
           const metadataPart = 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + '\r\n';
-          const mediaHeader = 'Content-Type: ' + fileBlob.type + '\r\n' + 'Content-Transfer-Encoding: base64\r\n\r\n';
-          
-          const base64Data = btoa(
-            new Uint8Array(fileBytes).reduce((data, byte) => data + String.fromCharCode(byte), '')
-          );
+          const mediaHeader = 'Content-Type: ' + fileBlob.type + '\r\n\r\n';
 
-          const multipartBody = delimiter + metadataPart + delimiter + mediaHeader + base64Data + close_delim;
+          const preBlob = new Blob([
+            delimiter,
+            metadataPart,
+            delimiter,
+            mediaHeader
+          ]);
+          const postBlob = new Blob([
+            close_delim
+          ]);
+
+          const multipartBodyBlob = new Blob([preBlob, fileBlob, postBlob], {
+            type: 'multipart/related; boundary=' + boundary
+          });
 
           const uploadRes = await fetch(
             'https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status',
@@ -2021,7 +2022,7 @@ export default function CreatePost() {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'multipart/related; boundary=' + boundary
               },
-              body: multipartBody
+              body: multipartBodyBlob
             }
           );
 

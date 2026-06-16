@@ -61,7 +61,7 @@ const PremiumLoader = () => (
         transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
         style={{
           fontSize: '1.5rem', fontWeight: 800,
-          background: 'linear-gradient(45deg, var(--accent-blue), #00d2ff)',
+          background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-blue))',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           letterSpacing: '0.15em'
         }}

@@ -152,8 +152,8 @@ export default function Dashboard() {
   const metrics = [
     { label: selectedPlatform === 'all' ? 'Total Posts' : `Total on ${selectedPlatform}`, value: totalPosts, change: `Drafts & published`, icon: Activity, color: 'var(--accent-blue)' },
     { label: selectedPlatform === 'all' ? 'Published Posts' : `${selectedPlatform} Published`, value: publishedPosts, change: 'Successfully posted', icon: CheckCircle2, color: '#00e676' },
-    { label: selectedPlatform === 'all' ? 'Scheduled Queue' : `${selectedPlatform} Scheduled`, value: scheduledPosts, change: 'Waiting to publish', icon: Clock, color: '#00d2ff' },
-    { label: selectedPlatform === 'all' ? 'Draft Templates' : `${selectedPlatform} Drafts`, value: drafts, change: 'Saved as drafts', icon: FileEdit, color: '#ffea00' },
+    { label: selectedPlatform === 'all' ? 'Scheduled Queue' : `${selectedPlatform} Scheduled`, value: scheduledPosts, change: 'Waiting to publish', icon: Clock, color: 'var(--accent-purple)' },
+    { label: selectedPlatform === 'all' ? 'Draft Templates' : `${selectedPlatform} Drafts`, value: drafts, change: 'Saved as drafts', icon: FileEdit, color: 'var(--warning)' },
   ];
 
   return (
@@ -305,18 +305,11 @@ export default function Dashboard() {
                 <motion.div 
                   variants={itemVariants} 
                   key={i} 
-                  className="glass-panel" 
+                  className="metric-card" 
                   style={{ 
-                    padding: '1.75rem', 
-                    position: 'relative', 
-                    overflow: 'hidden', 
-                    border: `1px solid ${metric.color}20`, 
-                    textTransform: 'capitalize',
-                    minHeight: '160px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between'
+                    border: `1px solid ${metric.color}20` 
                   }}
+                  whileHover={{ borderColor: `${metric.color}50` }}
                 >
                   <div style={{ position: 'absolute', bottom: '-15px', right: '-15px', opacity: 0.08 }}><Icon size={120} color={metric.color} /></div>
                   <div>
@@ -399,14 +392,9 @@ export default function Dashboard() {
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {displayPosts.map((post, i) => (
-                    <motion.div 
+                    <div 
                       key={post.id || i}
-                      whileHover={{ x: 6, background: 'rgba(255,255,255,0.03)' }}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '1rem 1.25rem', borderRadius: '12px', background: 'rgba(255,255,255,0.01)',
-                        border: '1px solid var(--panel-border)', transition: 'all 0.2s ease', gap: '1.5rem'
-                      }}
+                      className="post-list-item"
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
                         {post.media && post.media.length > 0 && (
@@ -461,7 +449,7 @@ export default function Dashboard() {
                           {post.status}
                         </span>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                   {displayPosts.length === 0 && (
                     <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem', fontSize: '0.9rem' }}>
