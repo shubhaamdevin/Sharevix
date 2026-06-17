@@ -702,7 +702,26 @@ export default function CreatePost() {
             {media.map((file, i) => (
               <div key={i} style={{ width: '100%', flexShrink: 0, scrollSnapAlign: 'start', position: 'relative', height }}>
                 {file.type.startsWith('video') ? (
-                  <video src={file.url} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <video 
+                      src={file.url} 
+                      autoPlay 
+                      loop 
+                      muted={isMuted} 
+                      playsInline 
+                      onClick={handleVideoClick} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} 
+                    />
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMuted(!isMuted);
+                      }} 
+                      style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10, background: 'rgba(0,0,0,0.6)', padding: '6px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      {isMuted ? <VolumeX size={14} color="#fff" /> : <Volume2 size={14} color="#fff" />}
+                    </div>
+                  </div>
                 ) : (
                   <img src={file.url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 )}
@@ -725,8 +744,16 @@ export default function CreatePost() {
         return (
           <div style={{ position: 'relative', flex: 1, background: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', color: '#fff' }}>
             {hasMedia ? (
-              media[0].type.startsWith('video') ? (
-                <video src={media[0].url} autoPlay loop muted playsInline style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }} />
+               media[0].type.startsWith('video') ? (
+                <video 
+                  src={media[0].url} 
+                  autoPlay 
+                  loop 
+                  muted={isMuted} 
+                  playsInline 
+                  onClick={handleVideoClick}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9, cursor: 'pointer' }} 
+                />
               ) : (
                 <img src={media[0].url} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }} />
               )
@@ -735,8 +762,11 @@ export default function CreatePost() {
             )}
             
             {/* Top volume button overlay */}
-            <div style={{ position: 'absolute', top: '15px', right: '15px', zIndex: 10, background: 'rgba(0,0,0,0.5)', padding: '6px', borderRadius: '50%' }}>
-              <VolumeX size={16} color="#fff" />
+            <div 
+              onClick={() => setIsMuted(!isMuted)}
+              style={{ position: 'absolute', top: '15px', right: '15px', zIndex: 10, background: 'rgba(0,0,0,0.5)', padding: '6px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {isMuted ? <VolumeX size={16} color="#fff" /> : <Volume2 size={16} color="#fff" />}
             </div>
 
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '150px', background: 'linear-gradient(transparent, rgba(0,0,0,0.8))', zIndex: 1 }} />
@@ -859,7 +889,15 @@ export default function CreatePost() {
           <div style={{ position: 'relative', flex: 1, background: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', color: '#fff' }}>
             {hasMedia ? (
               media[0].type.startsWith('video') ? (
-                <video src={media[0].url} autoPlay loop muted playsInline style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }} />
+                <video 
+                  src={media[0].url} 
+                  autoPlay 
+                  loop 
+                  muted={isMuted} 
+                  playsInline 
+                  onClick={handleVideoClick}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9, cursor: 'pointer' }} 
+                />
               ) : (
                 <img src={media[0].url} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }} />
               )
@@ -868,8 +906,11 @@ export default function CreatePost() {
             )}
             
             {/* Top Mute overlay button */}
-            <div style={{ position: 'absolute', top: '15px', left: '15px', zIndex: 10, background: 'rgba(0,0,0,0.5)', padding: '8px', borderRadius: '50%' }}>
-              <VolumeX size={18} color="#fff" />
+            <div 
+              onClick={() => setIsMuted(!isMuted)}
+              style={{ position: 'absolute', top: '15px', left: '15px', zIndex: 10, background: 'rgba(0,0,0,0.5)', padding: '8px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {isMuted ? <VolumeX size={18} color="#fff" /> : <Volume2 size={18} color="#fff" />}
             </div>
 
             <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '150px', background: 'linear-gradient(transparent, rgba(0,0,0,0.8))', zIndex: 1 }} />
@@ -1064,14 +1105,33 @@ export default function CreatePost() {
                 <div style={{ marginTop: '0.75rem', borderRadius: '16px', overflow: 'hidden', border: isLightTheme ? '1px solid #cfd9de' : '1px solid #2f3336', position: 'relative', height: '200px' }}>
                   {hasMedia ? (
                     media[0].type.startsWith('video') ? (
-                      <video src={media[0].url} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                        <video 
+                          src={media[0].url} 
+                          autoPlay 
+                          loop 
+                          muted={isMuted} 
+                          playsInline 
+                          onClick={handleVideoClick} 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} 
+                        />
+                        <div 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsMuted(!isMuted);
+                          }} 
+                          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10, background: 'rgba(0,0,0,0.6)', padding: '6px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          {isMuted ? <VolumeX size={14} color="#fff" /> : <Volume2 size={14} color="#fff" />}
+                        </div>
+                      </div>
                     ) : (
                       <img src={media[0].url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     )
                   ) : (
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', background: isLightTheme ? '#f7f9f9' : '#111' }}>X Video Player</div>
                   )}
-                  <div style={{ position: 'absolute', bottom: '0.5rem', right: '0.5rem', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', color: '#fff' }}>0:15</div>
+                  <div style={{ position: 'absolute', bottom: '0.5rem', right: '0.5rem', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', color: '#fff', zIndex: 5 }}>0:15</div>
                 </div>
                 {renderXActions()}
               </div>
@@ -1111,7 +1171,15 @@ export default function CreatePost() {
           <div style={{ position: 'relative', flex: 1, background: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: '100%', color: '#fff' }}>
             {hasMedia ? (
               media[0].type.startsWith('video') ? (
-                <video src={media[0].url} autoPlay loop muted playsInline style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }} />
+                <video 
+                  src={media[0].url} 
+                  autoPlay 
+                  loop 
+                  muted={isMuted} 
+                  playsInline 
+                  onClick={handleVideoClick}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9, cursor: 'pointer' }} 
+                />
               ) : (
                 <img src={media[0].url} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.9 }} />
               )
@@ -1123,7 +1191,12 @@ export default function CreatePost() {
             <div style={{ position: 'absolute', top: '15px', left: '15px', right: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <div style={{ background: 'rgba(0,0,0,0.5)', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Play size={16} fill="#fff" color="#fff" /></div>
-                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><VolumeX size={16} color="#fff" /></div>
+                <div 
+                  onClick={() => setIsMuted(!isMuted)}
+                  style={{ background: 'rgba(0,0,0,0.5)', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                >
+                  {isMuted ? <VolumeX size={16} color="#fff" /> : <Volume2 size={16} color="#fff" />}
+                </div>
               </div>
               <div style={{ background: 'rgba(0,0,0,0.5)', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MoreVertical size={16} color="#fff" />
@@ -1181,7 +1254,26 @@ export default function CreatePost() {
                 <img src={thumbnail.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : hasMedia ? (
                 media[0].type.startsWith('video') ? (
-                  <video src={media[0].url} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <video 
+                      src={media[0].url} 
+                      autoPlay 
+                      loop 
+                      muted={isMuted} 
+                      playsInline 
+                      onClick={handleVideoClick} 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} 
+                    />
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMuted(!isMuted);
+                      }} 
+                      style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10, background: 'rgba(0,0,0,0.6)', padding: '6px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      {isMuted ? <VolumeX size={14} color="#fff" /> : <Volume2 size={14} color="#fff" />}
+                    </div>
+                  </div>
                 ) : (
                   <img src={media[0].url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 )
@@ -1368,6 +1460,17 @@ export default function CreatePost() {
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+
+  const handleVideoClick = (e) => {
+    const video = e.target;
+    if (video.paused) {
+      video.play().catch(err => console.log("Failed to play video:", err));
+    } else {
+      video.pause();
+    }
+  };
+
   const [previewPlatform, setPreviewPlatform] = useState(() => {
     if (editPost && editPost.platforms && editPost.platforms.length > 0) return editPost.platforms[0];
     return 'instagram';
@@ -2872,7 +2975,26 @@ export default function CreatePost() {
                     {media.map((file, i) => (
                       <div key={i} style={{ width: '100%', flexShrink: 0, scrollSnapAlign: 'start', position: 'relative', height: (contentType === 'reel' || contentType === 'video') ? '400px' : '300px' }}>
                         {file.type.startsWith('video') ? (
-                          <video src={file.url} autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                            <video 
+                              src={file.url} 
+                              autoPlay 
+                              loop 
+                              muted={isMuted} 
+                              playsInline 
+                              onClick={handleVideoClick} 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }} 
+                            />
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsMuted(!isMuted);
+                              }} 
+                              style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 10, background: 'rgba(0,0,0,0.6)', padding: '6px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              {isMuted ? <VolumeX size={14} color="#fff" /> : <Volume2 size={14} color="#fff" />}
+                            </div>
+                          </div>
                         ) : (
                           <img src={file.url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         )}
