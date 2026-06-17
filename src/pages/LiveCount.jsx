@@ -163,31 +163,56 @@ export default function LiveCount() {
         const token = localStorage.getItem('threads_access_token');
         if (token) {
           try {
-            const res = await fetch('/api/threads-proxy', {
+            let count = 0;
+            // 1. Try to fetch from /me/threads_insights (Official way for followers_count)
+            const insightsRes = await fetch('/api/threads-proxy', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                path: '/me',
+                path: '/me/threads_insights',
                 targetMethod: 'GET',
                 params: {
-                  fields: 'follower_count',
+                  metric: 'followers_count',
                   access_token: token
                 }
               })
             });
-            const data = await res.json();
-            if (res.ok) {
-              const count = data.follower_count ?? data.followers_count ?? 0;
-              setBaseCount(count);
-              setDisplayCount(count);
-              if (showLoading) setIsLoading(false);
-              setIsTicking(count > 0);
-              return;
+            const insightsData = await insightsRes.json();
+            
+            if (insightsRes.ok && insightsData.data && insightsData.data.length > 0) {
+              count = insightsData.data[0].total_value?.value ?? 0;
             } else {
-              throw data.error || new Error(data.error?.message || "Failed to query Threads profile");
+              // 2. Fallback: Try to query /me profile field just in case
+              console.warn("Threads insights failed, falling back to /me profile query", insightsData);
+              const profileRes = await fetch('/api/threads-proxy', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  path: '/me',
+                  targetMethod: 'GET',
+                  params: {
+                    fields: 'follower_count',
+                    access_token: token
+                  }
+                })
+              });
+              const profileData = await profileRes.json();
+              if (profileRes.ok) {
+                count = profileData.follower_count ?? profileData.followers_count ?? 0;
+              } else {
+                throw insightsData.error || profileData.error || new Error("Failed to query Threads metrics");
+              }
             }
+
+            setBaseCount(count);
+            setDisplayCount(count);
+            if (showLoading) setIsLoading(false);
+            setIsTicking(count > 0);
+            return;
           } catch (e) {
             console.error("Threads LiveCount error:", e);
             if (isThreadsTokenError(e)) {
