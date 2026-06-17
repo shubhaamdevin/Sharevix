@@ -58,45 +58,31 @@ export default function AuthCallback() {
           localStorage.setItem('connectedAccounts', JSON.stringify(connectedAccounts));
         }
 
-        // Auto-fetch details if connecting youtube (authorization code flow)
+        // Auto-fetch details if connecting youtube (implicit flow - token in URL hash)
         if (state === 'youtube') {
           let ytSaved = false;
           let fetchError = null;
-          let ytAccessToken = null;
 
           try {
-            setMessage('Exchanging YouTube authorization code...');
-            // Exchange authorization code for access_token + refresh_token via our serverless proxy
-            const redirectUri = `${window.location.origin}/auth/callback`;
-            const exchangeRes = await fetch(`/api/youtube-token?code=${encodeURIComponent(tokenToUse)}&redirect_uri=${encodeURIComponent(redirectUri)}`);
-            const exchangeData = await exchangeRes.json();
-
-            if (!exchangeRes.ok || exchangeData.error) {
-              throw new Error(exchangeData.error || 'Failed to exchange YouTube authorization code');
+            // In implicit flow, accessToken is already parsed from the URL hash above
+            if (!accessToken) {
+              throw new Error("No access token received from Google. Please ensure your Google OAuth client is configured as a 'Single-page application (SPA)' in Google Cloud Console.");
             }
-
-            ytAccessToken = exchangeData.access_token;
-            const refreshToken = exchangeData.refresh_token;
-            const expiresIn = exchangeData.expires_in || 3600; // seconds
-            const expiryTimestamp = Date.now() + (expiresIn * 1000) - 60000; // subtract 1 min buffer
 
             setMessage('Fetching your YouTube channel...');
             const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, {
-              headers: { 'Authorization': `Bearer ${ytAccessToken}` }
+              headers: { 'Authorization': `Bearer ${accessToken}` }
             });
             const ytData = await ytRes.json();
 
             if (ytRes.ok && ytData.items && ytData.items.length > 0) {
               const channel = ytData.items[0];
+              const expiryTimestamp = Date.now() + (3600 * 1000) - 60000; // 1 hour - 1 min buffer
               localStorage.setItem('youtube_channel_id', channel.id);
               localStorage.setItem('youtube_channel_name', channel.snippet.title);
-              localStorage.setItem('youtube_access_token', ytAccessToken);
+              localStorage.setItem('youtube_access_token', accessToken);
               localStorage.setItem('youtube_username', channel.snippet.customUrl || channel.snippet.title);
               localStorage.setItem('youtube_subscribers', channel.statistics.subscriberCount || '0');
-              // Persist refresh token and expiry for silent renewal
-              if (refreshToken) {
-                localStorage.setItem('youtube_refresh_token', refreshToken);
-              }
               localStorage.setItem('youtube_token_expiry', String(expiryTimestamp));
               ytSaved = true;
             } else if (!ytRes.ok) {

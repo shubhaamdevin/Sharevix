@@ -2019,29 +2019,7 @@ export default function CreatePost() {
 
       // Direct Real-time YouTube API Uploading
       if (status === 'published' && selectedTargets.includes('youtube')) {
-        // Silent token refresh: check if access token is expired, refresh if possible
-        let token = localStorage.getItem('youtube_access_token');
-        const ytExpiry = parseInt(localStorage.getItem('youtube_token_expiry') || '0', 10);
-        const ytRefreshToken = localStorage.getItem('youtube_refresh_token');
-        
-        if (token && ytRefreshToken && Date.now() > ytExpiry) {
-          // Token expired but we have a refresh token - silently renew
-          try {
-            const refreshRes = await fetch(`/api/youtube-refresh?refresh_token=${encodeURIComponent(ytRefreshToken)}`);
-            const refreshData = await refreshRes.json();
-            if (refreshRes.ok && refreshData.access_token) {
-              token = refreshData.access_token;
-              const newExpiry = Date.now() + ((refreshData.expires_in || 3600) * 1000) - 60000;
-              localStorage.setItem('youtube_access_token', token);
-              localStorage.setItem('youtube_token_expiry', String(newExpiry));
-            } else {
-              console.warn('YouTube token refresh failed:', refreshData);
-            }
-          } catch (refreshErr) {
-            console.warn('YouTube token refresh request failed:', refreshErr);
-          }
-        }
-
+        const token = localStorage.getItem('youtube_access_token');
         if (!token) {
           throw new Error("YouTube Access Token is missing. Please connect your YouTube account under Accounts page.");
         }
