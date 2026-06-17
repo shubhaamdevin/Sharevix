@@ -24,6 +24,9 @@ export default function AuthCallback() {
       localStorage.setItem('youtube_access_token', config?.token || 'mock_youtube_access_token_123');
       localStorage.setItem('youtube_username', 'mock_youtube_creator');
       localStorage.setItem('youtube_subscribers', '12500');
+    } else if (config?.state === 'threads') {
+      localStorage.setItem('threads_username', 'mock_threads_creator');
+      localStorage.setItem('threads_access_token', config?.token || 'mock_threads_token_123');
     } else {
       const mockPages = [
         { 
@@ -106,6 +109,9 @@ export default function AuthCallback() {
             localStorage.setItem('youtube_access_token', tokenToUse);
             localStorage.setItem('youtube_username', 'mock_youtube_creator');
             localStorage.setItem('youtube_subscribers', '12500');
+          } else if (state === 'threads') {
+            localStorage.setItem('threads_username', 'mock_threads_creator');
+            localStorage.setItem('threads_access_token', tokenToUse);
           } else {
             const mockPages = [
               { 
@@ -215,6 +221,37 @@ export default function AuthCallback() {
             }
             return;
           }
+        }
+
+        // Auto-fetch details if connecting threads
+        if (state === 'threads') {
+          // Threads only supports Authorization Code flow, so we must fall back to Mock Mode
+          setStatus('error');
+          const config = { token: tokenToUse, state };
+          mockConfigRef.current = config;
+          setMockConfig(config);
+
+          let completed = false;
+          for (let i = 5; i > 0; i--) {
+            if (hasConnectedMock.current) {
+              completed = true;
+              break;
+            }
+            setCountdown(i);
+            setMessage("Real Threads Connection Failed: Client-side App Secret exchange is not supported for security reasons.");
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+
+          if (!completed && !hasConnectedMock.current) {
+            hasConnectedMock.current = true;
+            localStorage.setItem('threads_username', 'mock_threads_creator');
+            localStorage.setItem('threads_access_token', config.token || 'mock_threads_token_123');
+
+            setStatus('success');
+            setMessage("Successfully connected to Threads (Mock Mode)! Redirecting...");
+            setTimeout(() => navigate('/accounts'), 2000);
+          }
+          return;
         }
 
         // Auto-fetch pages if connecting facebook or instagram

@@ -98,6 +98,10 @@ export default function Accounts() {
       localStorage.removeItem('youtube_username');
       localStorage.removeItem('youtube_subscribers');
     }
+    if (disconnectTarget.id === 'threads') {
+      localStorage.removeItem('threads_username');
+      localStorage.removeItem('threads_access_token');
+    }
 
     window.dispatchEvent(new CustomEvent('show-notification', { 
       detail: { type: 'success', message: `${disconnectTarget.name} disconnected successfully` } 
@@ -146,6 +150,7 @@ export default function Accounts() {
                             Connected (Mock Simulation) {acc.id === 'youtube' && localStorage.getItem('youtube_channel_name') ? `(${localStorage.getItem('youtube_channel_name')})` : ''}
                             {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
                             {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
+                            {acc.id === 'threads' && localStorage.getItem('threads_username') ? `(@${localStorage.getItem('threads_username')})` : ''}
                           </div>
                         ) : (
                           <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
