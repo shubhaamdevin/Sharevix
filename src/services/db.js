@@ -19,11 +19,50 @@ function dataURLtoBlob(dataurl) {
   }
 }
 
+async function uploadToTmpFiles(blob, fileName) {
+  try {
+    const formData = new FormData();
+    formData.append('file', blob, fileName || `upload_${Date.now()}.bin`);
+    formData.append('expire', '86400'); // 24 hours
+
+    const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    if (res.ok && data.status === 'success' && data.data?.url) {
+      const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+      console.log("Uploaded successfully to tmpfiles.org fallback:", directUrl);
+      return directUrl;
+    } else {
+      throw new Error(data.error || 'Failed to upload to tmpfiles.org');
+    }
+  } catch (e) {
+    console.error("Failed to upload to tmpfiles.org fallback:", e);
+    throw e;
+  }
+}
+
 
 export const dbService = {
   // --- MEDIA STORAGE UPLOAD ---
   async uploadFile(fileOrBase64, fileName) {
     if (!storage) {
+      try {
+        let blob = fileOrBase64;
+        let name = fileName;
+        if (typeof fileOrBase64 === 'string') {
+          blob = dataURLtoBlob(fileOrBase64);
+        } else if (fileOrBase64 instanceof File) {
+          name = fileOrBase64.name;
+        }
+        if (blob) {
+          return await uploadToTmpFiles(blob, name);
+        }
+      } catch (err) {
+        console.warn("tmpfiles.org fallback upload failed, using local URL:", err);
+      }
+      
       if (fileOrBase64 instanceof File) {
         return URL.createObjectURL(fileOrBase64);
       }
@@ -56,7 +95,22 @@ export const dbService = {
       const downloadURL = await Promise.race([uploadPromise, timeoutPromise]);
       return downloadURL;
     } catch (e) {
-      console.warn("Firebase Storage upload failed or timed out, using local fallback URL:", e);
+      console.warn("Firebase Storage upload failed or timed out, trying tmpfiles.org fallback:", e);
+      try {
+        let blob = fileOrBase64;
+        let name = fileName;
+        if (typeof fileOrBase64 === 'string') {
+          blob = dataURLtoBlob(fileOrBase64);
+        } else if (fileOrBase64 instanceof File) {
+          name = fileOrBase64.name;
+        }
+        if (blob) {
+          return await uploadToTmpFiles(blob, name);
+        }
+      } catch (fallbackErr) {
+        console.error("Firebase Storage and tmpfiles.org fallback both failed:", fallbackErr);
+      }
+      
       if (fileOrBase64 instanceof File) {
         return URL.createObjectURL(fileOrBase64);
       }
