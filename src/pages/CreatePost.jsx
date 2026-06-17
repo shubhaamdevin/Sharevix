@@ -1461,6 +1461,10 @@ export default function CreatePost() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [visibility, setVisibility] = useState(() => {
+    if (editPost && editPost.visibility) return editPost.visibility;
+    return 'public';
+  });
 
   const handleVideoClick = (e) => {
     const video = e.target;
@@ -1768,7 +1772,8 @@ export default function CreatePost() {
         status: status, // 'published', 'scheduled', or 'draft'
         media: uploadedPlatformMedia.universal || [],
         platformMedia: uploadedPlatformMedia,
-        thumbnail: uploadedThumbnail
+        thumbnail: uploadedThumbnail,
+        visibility: visibility
       };
 
       // Direct Real-time Facebook API Posting with auto-resolving Page ID and Page Access Token
@@ -2014,7 +2019,29 @@ export default function CreatePost() {
 
       // Direct Real-time YouTube API Uploading
       if (status === 'published' && selectedTargets.includes('youtube')) {
-        const token = localStorage.getItem('youtube_access_token');
+        // Silent token refresh: check if access token is expired, refresh if possible
+        let token = localStorage.getItem('youtube_access_token');
+        const ytExpiry = parseInt(localStorage.getItem('youtube_token_expiry') || '0', 10);
+        const ytRefreshToken = localStorage.getItem('youtube_refresh_token');
+        
+        if (token && ytRefreshToken && Date.now() > ytExpiry) {
+          // Token expired but we have a refresh token - silently renew
+          try {
+            const refreshRes = await fetch(`/api/youtube-refresh?refresh_token=${encodeURIComponent(ytRefreshToken)}`);
+            const refreshData = await refreshRes.json();
+            if (refreshRes.ok && refreshData.access_token) {
+              token = refreshData.access_token;
+              const newExpiry = Date.now() + ((refreshData.expires_in || 3600) * 1000) - 60000;
+              localStorage.setItem('youtube_access_token', token);
+              localStorage.setItem('youtube_token_expiry', String(newExpiry));
+            } else {
+              console.warn('YouTube token refresh failed:', refreshData);
+            }
+          } catch (refreshErr) {
+            console.warn('YouTube token refresh request failed:', refreshErr);
+          }
+        }
+
         if (!token) {
           throw new Error("YouTube Access Token is missing. Please connect your YouTube account under Accounts page.");
         }
@@ -2035,6 +2062,7 @@ export default function CreatePost() {
           }
 
           // Construct YouTube video metadata
+          const ytPrivacy = visibility === 'unlisted' ? 'unlisted' : visibility === 'private' ? 'private' : 'public';
           const metadata = {
             snippet: {
               title: ytContent.title || "Uploaded via Sharevix",
@@ -2042,7 +2070,7 @@ export default function CreatePost() {
               categoryId: "22" // People & Blogs
             },
             status: {
-              privacyStatus: "public"
+              privacyStatus: ytPrivacy
             }
           };
 
@@ -2254,6 +2282,7 @@ export default function CreatePost() {
       setQuizOptions(['Option 1', 'Option 2']);
       setScheduleDate('');
       setScheduleTime('');
+      setVisibility('public');
     } catch (err) {
       console.error(err);
       window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'error', message: err.message || 'Failed to publish post.' } }));
@@ -2664,6 +2693,37 @@ export default function CreatePost() {
           </div>
 
           <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            
+            {/* Visibility Options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                <Globe size={16} color="var(--accent-blue)" /> Post Visibility
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                {['public', 'private', 'unlisted'].map((vis) => (
+                  <button
+                    key={vis}
+                    type="button"
+                    onClick={() => setVisibility(vis)}
+                    style={{
+                      flex: 1,
+                      padding: '0.65rem 0.75rem',
+                      borderRadius: '10px',
+                      background: visibility === vis ? 'rgba(0, 210, 255, 0.08)' : 'rgba(255,255,255,0.01)',
+                      border: visibility === vis ? '1px solid var(--accent-blue)' : '1px solid var(--panel-border)',
+                      color: visibility === vis ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.8rem',
+                      textTransform: 'capitalize',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {vis}
+                  </button>
+                ))}
+              </div>
+            </div>
             
             {/* Publishing Schedule Toggle */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

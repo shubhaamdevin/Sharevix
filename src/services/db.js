@@ -212,23 +212,15 @@ export const dbService = {
     }
   },
 
-  async deletePost(postId) {
-    // Keep local storage fallback in sync by deleting the post there too
-    try {
-      const localPosts = localStorage.getItem('postHistory');
-      if (localPosts) {
-        const parsed = JSON.parse(localPosts);
-        const filtered = parsed.filter(p => String(p.id) !== String(postId));
-        localStorage.setItem('postHistory', JSON.stringify(filtered));
-      }
-    } catch (err) {
-      console.error("Failed to delete post from localStorage:", err);
-    }
-
+  async deletePost(postId, platforms = null, deleteLocal = true) {
     const posts = await this.getPosts();
     const targetPost = posts.find(p => String(p.id) === String(postId));
-    
-    if (targetPost && targetPost.fb_post_id) {
+    if (!targetPost) return false;
+
+    const platformsToDelete = platforms || targetPost.platforms || [];
+
+    // 1. Sync-delete from Facebook if selected and exists
+    if (platformsToDelete.includes('facebook') && targetPost.fb_post_id) {
       const token = localStorage.getItem('fb_access_token');
       if (token) {
         try {
@@ -248,7 +240,8 @@ export const dbService = {
       }
     }
 
-    if (targetPost && targetPost.threads_post_id) {
+    // 2. Sync-delete from Threads if selected and exists
+    if (platformsToDelete.includes('threads') && targetPost.threads_post_id) {
       const token = localStorage.getItem('threads_access_token');
       if (token) {
         try {
@@ -278,13 +271,76 @@ export const dbService = {
       }
     }
 
-    try {
-      const postRef = doc(db, "posts", postId);
-      await deleteDoc(postRef);
-      return true;
-    } catch (e) {
-      console.error("Error deleting post from Firestore: ", e);
-      return false;
+    // 3. Local/Firestore update or delete
+    if (deleteLocal) {
+      // Keep local storage fallback in sync by deleting the post there too
+      try {
+        const localPosts = localStorage.getItem('postHistory');
+        if (localPosts) {
+          const parsed = JSON.parse(localPosts);
+          const filtered = parsed.filter(p => String(p.id) !== String(postId));
+          localStorage.setItem('postHistory', JSON.stringify(filtered));
+        }
+      } catch (err) {
+        console.error("Failed to delete post from localStorage:", err);
+      }
+
+      try {
+        const postRef = doc(db, "posts", postId);
+        await deleteDoc(postRef);
+        return true;
+      } catch (e) {
+        console.error("Error deleting post from Firestore: ", e);
+        return false;
+      }
+    } else {
+      // Just update the post to remove selected platforms and their post IDs
+      const remainingPlatforms = (targetPost.platforms || []).filter(p => !platformsToDelete.includes(p));
+      const updatedPostData = {
+        ...targetPost,
+        platforms: remainingPlatforms
+      };
+      if (platformsToDelete.includes('facebook')) {
+        delete updatedPostData.fb_post_id;
+      }
+      if (platformsToDelete.includes('threads')) {
+        delete updatedPostData.threads_post_id;
+      }
+
+      // Update in localStorage fallback
+      try {
+        const localPosts = localStorage.getItem('postHistory');
+        if (localPosts) {
+          const parsed = JSON.parse(localPosts);
+          const idx = parsed.findIndex(p => String(p.id) === String(postId));
+          if (idx !== -1) {
+            parsed[idx] = updatedPostData;
+            localStorage.setItem('postHistory', JSON.stringify(parsed));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to update post in localStorage:", err);
+      }
+
+      // Update in Firestore
+      try {
+        const postRef = doc(db, "posts", postId);
+        const { updateDoc, deleteField } = await import('firebase/firestore');
+        const updateFields = {
+          platforms: remainingPlatforms
+        };
+        if (platformsToDelete.includes('facebook')) {
+          updateFields.fb_post_id = deleteField();
+        }
+        if (platformsToDelete.includes('threads')) {
+          updateFields.threads_post_id = deleteField();
+        }
+        await updateDoc(postRef, updateFields);
+        return true;
+      } catch (e) {
+        console.error("Error updating post in Firestore: ", e);
+        return false;
+      }
     }
   },
 

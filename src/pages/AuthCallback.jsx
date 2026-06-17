@@ -58,50 +58,60 @@ export default function AuthCallback() {
           localStorage.setItem('connectedAccounts', JSON.stringify(connectedAccounts));
         }
 
-        // Auto-fetch details if connecting youtube
+        // Auto-fetch details if connecting youtube (authorization code flow)
         if (state === 'youtube') {
           let ytSaved = false;
           let fetchError = null;
-
-          console.log("YouTube connection debug:", {
-            hasHash: !!window.location.hash,
-            hasQueryCode: searchParams.has('code'),
-            tokenPreview: tokenToUse ? (tokenToUse.substring(0, 10) + '...') : null,
-            isCode: tokenToUse && !tokenToUse.startsWith('ya29.')
-          });
+          let ytAccessToken = null;
 
           try {
-            if (tokenToUse && !tokenToUse.startsWith('ya29.')) {
-              throw new Error("Received an Authorization Code instead of an Access Token. Please ensure your Google Client ID is configured as a 'Single-page application' (SPA) in Google Cloud Console, or that Implicit Flow is enabled.");
+            setMessage('Exchanging YouTube authorization code...');
+            // Exchange authorization code for access_token + refresh_token via our serverless proxy
+            const redirectUri = `${window.location.origin}/auth/callback`;
+            const exchangeRes = await fetch(`/api/youtube-token?code=${encodeURIComponent(tokenToUse)}&redirect_uri=${encodeURIComponent(redirectUri)}`);
+            const exchangeData = await exchangeRes.json();
+
+            if (!exchangeRes.ok || exchangeData.error) {
+              throw new Error(exchangeData.error || 'Failed to exchange YouTube authorization code');
             }
 
+            ytAccessToken = exchangeData.access_token;
+            const refreshToken = exchangeData.refresh_token;
+            const expiresIn = exchangeData.expires_in || 3600; // seconds
+            const expiryTimestamp = Date.now() + (expiresIn * 1000) - 60000; // subtract 1 min buffer
+
+            setMessage('Fetching your YouTube channel...');
             const ytRes = await fetch(`https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true`, {
-              headers: { 'Authorization': `Bearer ${tokenToUse}` }
+              headers: { 'Authorization': `Bearer ${ytAccessToken}` }
             });
             const ytData = await ytRes.json();
+
             if (ytRes.ok && ytData.items && ytData.items.length > 0) {
               const channel = ytData.items[0];
               localStorage.setItem('youtube_channel_id', channel.id);
               localStorage.setItem('youtube_channel_name', channel.snippet.title);
-              localStorage.setItem('youtube_access_token', tokenToUse);
+              localStorage.setItem('youtube_access_token', ytAccessToken);
               localStorage.setItem('youtube_username', channel.snippet.customUrl || channel.snippet.title);
               localStorage.setItem('youtube_subscribers', channel.statistics.subscriberCount || '0');
+              // Persist refresh token and expiry for silent renewal
+              if (refreshToken) {
+                localStorage.setItem('youtube_refresh_token', refreshToken);
+              }
+              localStorage.setItem('youtube_token_expiry', String(expiryTimestamp));
               ytSaved = true;
             } else if (!ytRes.ok) {
-              fetchError = ytData.error?.message || "Failed to query YouTube API";
+              fetchError = ytData.error?.message || 'Failed to query YouTube API';
             } else {
-              fetchError = "No YouTube Channel found on this Google account. Please create a channel first.";
+              fetchError = 'No YouTube Channel found on this Google account. Please create a channel first.';
             }
           } catch (err) {
             fetchError = err.message;
-            console.error("YouTube Channel fetch failed:", err);
+            console.error('YouTube connection failed:', err);
           }
 
           if (!ytSaved) {
-            // Remove from connectedAccounts if fetch failed
             const updatedConnections = connectedAccounts.filter(id => id !== 'youtube');
             localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
-            
             setStatus('error');
             setMessage(`YouTube connection failed: ${fetchError || 'Could not verify channel'}`);
             setTimeout(() => navigate('/accounts'), 4000);
@@ -173,11 +183,32 @@ export default function AuthCallback() {
         if (state === 'facebook' || state === 'instagram') {
           let pagesSaved = false;
           let fetchError = null;
+          let longLivedToken = tokenToUse;
 
           try {
-            // Real Facebook Graph API fetch using access token, requesting instagram_business_account fields
+            // Step 1: Exchange short-lived user token for a long-lived token (~60 days)
+            setMessage('Securing a long-lived Facebook session...');
+            try {
+              const longTokenRes = await fetch(`/api/fb-long-token?short_token=${encodeURIComponent(tokenToUse)}`);
+              const longTokenData = await longTokenRes.json();
+              if (longTokenRes.ok && longTokenData.access_token) {
+                longLivedToken = longTokenData.access_token;
+                // Save expiry: expires_in is in seconds
+                const expiresIn = longTokenData.expires_in || 5183944; // default ~60 days
+                const expiryTimestamp = Date.now() + (expiresIn * 1000) - 86400000; // subtract 1 day buffer
+                localStorage.setItem('fb_token_expiry', String(expiryTimestamp));
+                localStorage.setItem('fb_user_token', longLivedToken);
+              } else {
+                console.warn('Long-lived token exchange failed, using short-lived token:', longTokenData);
+              }
+            } catch (ltErr) {
+              console.warn('Long-lived token exchange request failed, using short-lived token:', ltErr);
+            }
+
+            // Step 2: Fetch pages using the (long-lived) token
+            setMessage('Fetching your Facebook Pages...');
             const fields = 'name,access_token,category,instagram_business_account';
-            const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=${fields}&access_token=${tokenToUse}`);
+            const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=${fields}&access_token=${longLivedToken}`);
             const data = await res.json();
             if (res.ok && data.data && data.data.length > 0) {
               const pages = data.data.map(p => ({
@@ -191,41 +222,40 @@ export default function AuthCallback() {
               localStorage.setItem('fb_page_id', pages[0].id);
               localStorage.setItem('fb_page_name', pages[0].name);
               localStorage.setItem('fb_access_token', pages[0].access_token);
-              
+              localStorage.setItem('facebook_username', pages[0].name);
+
               if (state === 'instagram') {
-                // Find page with linked Instagram Business Account
                 const pageWithIg = pages.find(p => p.instagram_business_account && p.instagram_business_account.id);
                 if (pageWithIg) {
                   localStorage.setItem('ig_business_account_id', pageWithIg.instagram_business_account.id);
-                  // Make this page active as well
                   localStorage.setItem('fb_page_id', pageWithIg.id);
                   localStorage.setItem('fb_page_name', pageWithIg.name);
                   localStorage.setItem('fb_access_token', pageWithIg.access_token);
+                  const igUsername = pageWithIg.instagram_business_account.username || pageWithIg.instagram_business_account.name || pageWithIg.name;
+                  localStorage.setItem('instagram_username', igUsername);
                   pagesSaved = true;
                 } else {
-                  fetchError = "No Instagram Business Account linked to your Facebook Pages. Please link your Instagram Professional account to your Facebook Page.";
+                  fetchError = 'No Instagram Business Account linked to your Facebook Pages. Please link your Instagram Professional account to your Facebook Page.';
                 }
               } else {
                 pagesSaved = true;
               }
             } else if (!res.ok) {
-              fetchError = data.error?.message || "Failed to fetch Facebook pages";
-              console.error("Facebook API error:", data);
+              fetchError = data.error?.message || 'Failed to fetch Facebook pages';
+              console.error('Facebook API error:', data);
             } else if (data.data && data.data.length === 0) {
-              fetchError = "No Facebook Pages found on this account. Make sure you have created a Facebook Page";
+              fetchError = 'No Facebook Pages found on this account. Make sure you have created a Facebook Page';
             }
           } catch (err) {
             fetchError = err.message;
-            console.error("Real Graph API page fetch failed:", err);
+            console.error('Facebook/Instagram page fetch failed:', err);
           }
 
           if (!pagesSaved) {
-            // Remove from connectedAccounts if fetch failed
             const updatedConnections = connectedAccounts.filter(id => id !== state);
             localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
-
             setStatus('error');
-            setMessage(`Real Connection Failed: ${fetchError || 'No active Facebook Pages found'}`);
+            setMessage(`Connection Failed: ${fetchError || 'No active Facebook Pages found'}`);
             setTimeout(() => navigate('/accounts'), 4000);
             return;
           }
@@ -233,6 +263,7 @@ export default function AuthCallback() {
 
         setStatus('success');
         setMessage(`Successfully connected to ${state}! Redirecting...`);
+        window.dispatchEvent(new CustomEvent('accounts-updated'));
         setTimeout(() => navigate('/accounts'), 2000);
       } else {
         setStatus('error');

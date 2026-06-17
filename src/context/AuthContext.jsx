@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, isMock } from '../firebase';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence } from 'firebase/auth';
 
 const AuthContext = createContext();
 
@@ -80,15 +80,101 @@ export function AuthProvider({ children }) {
   const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'admin@sharevix.com';
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
+    // Explicitly set browser local persistence to prevent session logout on browser close
+    setPersistence(auth, browserLocalPersistence).catch(err => {
+      console.error("Auth persistence error:", err);
+    });
+
+    const unsubscribe = auth.onAuthStateChanged(async user => {
       if (user) {
+        // Restore connections from Firestore to localStorage on login
+        try {
+          const { doc, getDoc } = await import('firebase/firestore');
+          const { db } = await import('../firebase');
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            if (userData.connections) {
+              Object.entries(userData.connections).forEach(([key, val]) => {
+                if (val === null) {
+                  localStorage.removeItem(key);
+                } else if (typeof val === 'object') {
+                  localStorage.setItem(key, JSON.stringify(val));
+                } else {
+                  localStorage.setItem(key, String(val));
+                }
+              });
+              // Dispatch to update active accounts in components
+              window.dispatchEvent(new CustomEvent('accounts-updated'));
+            }
+          }
+        } catch (err) {
+          console.warn("Failed to load user connections from Firestore:", err);
+        }
+
         setCurrentUser({ ...user, isAdmin: user.email === adminEmail });
       } else {
         setCurrentUser(null);
       }
       setLoading(false);
     });
+
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const handleAccountsUpdated = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const keys = [
+            'connectedAccounts',
+            'fb_available_pages',
+            'fb_page_id',
+            'fb_page_name',
+            'fb_access_token',
+            'facebook_username',
+            'ig_business_account_id',
+            'instagram_username',
+            'threads_username',
+            'threads_access_token',
+            'threads_user_id',
+            'youtube_channel_id',
+            'youtube_channel_name',
+            'youtube_access_token',
+            'youtube_username',
+            'youtube_subscribers'
+          ];
+          const connections = {};
+          keys.forEach(key => {
+            const val = localStorage.getItem(key);
+            if (val !== null) {
+              try {
+                connections[key] = JSON.parse(val);
+              } catch (e) {
+                connections[key] = val;
+              }
+            } else {
+              connections[key] = null;
+            }
+          });
+
+          const { doc, updateDoc } = await import('firebase/firestore');
+          const { db } = await import('../firebase');
+          await updateDoc(doc(db, "users", user.uid), {
+            connections: connections
+          });
+          console.log("Successfully synced connections to Firestore");
+        } catch (err) {
+          console.error("Failed to sync connections to Firestore:", err);
+        }
+      }
+    };
+
+    window.addEventListener('accounts-updated', handleAccountsUpdated);
+    return () => {
+      window.removeEventListener('accounts-updated', handleAccountsUpdated);
+    };
   }, []);
 
   const login = async (email, password) => {

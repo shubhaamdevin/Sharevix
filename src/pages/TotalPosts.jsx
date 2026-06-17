@@ -4,7 +4,7 @@ import { FileText, FileEdit, Trash2, Globe, Heart, MessageCircle, UserPlus, Filt
 import { useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
 import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon, PinterestIcon } from '../components/Icons';
-import ConfirmationModal from '../components/ConfirmationModal';
+import DeletePostModal from '../components/DeletePostModal';
 
 const platformIcons = {
   facebook: { icon: FacebookIcon, color: '#1877F2' },
@@ -59,7 +59,7 @@ export default function TotalPosts() {
   }, []);
 
   // Delete modal states
-  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deleteTargetPost, setDeleteTargetPost] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const fetchPosts = async () => {
@@ -78,26 +78,29 @@ export default function TotalPosts() {
     fetchPosts();
   }, []);
 
-  const triggerDeleteConfirm = (postId) => {
-    setDeleteTargetId(postId);
+  const triggerDeleteConfirm = (post) => {
+    setDeleteTargetPost(post);
     setIsDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTargetId) return;
+  const handleConfirmDelete = async (postId, selectedPlatforms, deleteLocal) => {
     setIsDeleteModalOpen(false);
-    const success = await dbService.deletePost(deleteTargetId);
+    const success = await dbService.deletePost(postId, selectedPlatforms, deleteLocal);
     if (success) {
-      setPosts(prev => prev.filter(p => p.id !== deleteTargetId));
+      if (deleteLocal) {
+        setPosts(prev => prev.filter(p => p.id !== postId));
+      } else {
+        fetchPosts();
+      }
       window.dispatchEvent(new CustomEvent('show-notification', { 
-        detail: { type: 'success', message: 'Post deleted successfully from Sharevix and social media!' } 
+        detail: { type: 'success', message: deleteLocal ? 'Post deleted successfully!' : 'Post removed from selected platforms!' } 
       }));
     } else {
       window.dispatchEvent(new CustomEvent('show-notification', { 
         detail: { type: 'error', message: 'Failed to delete post.' } 
       }));
     }
-    setDeleteTargetId(null);
+    setDeleteTargetPost(null);
   };
 
   // Filter posts
@@ -455,7 +458,7 @@ export default function TotalPosts() {
                     </button>
 
                     <button 
-                      onClick={() => triggerDeleteConfirm(post.id)}
+                      onClick={() => triggerDeleteConfirm(post)}
                       style={{ 
                         background: 'rgba(255, 23, 68, 0.08)', 
                         border: '1px solid rgba(255, 23, 68, 0.15)', 
@@ -490,16 +493,11 @@ export default function TotalPosts() {
         </div>
       )}
 
-      {/* Premium Confirmation Modal */}
-      <ConfirmationModal 
+      <DeletePostModal 
         isOpen={isDeleteModalOpen}
-        title="Delete Post"
-        message="Are you sure you want to delete this post? This will also remove it from the connected social media accounts."
-        confirmLabel="Delete Post"
-        cancelLabel="Cancel"
+        post={deleteTargetPost}
         onConfirm={handleConfirmDelete}
         onCancel={() => setIsDeleteModalOpen(false)}
-        isDangerous={true}
       />
     </motion.div>
   );

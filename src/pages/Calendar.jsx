@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, CheckCircle2, FileEdit, Trash2, X, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
-import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon } from '../components/Icons';
-import ConfirmationModal from '../components/ConfirmationModal';
+import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon, ThreadsIcon } from '../components/Icons';
+import DeletePostModal from '../components/DeletePostModal';
 
 const platformIcons = {
   facebook: { icon: FacebookIcon, color: '#1877F2' },
@@ -12,7 +12,8 @@ const platformIcons = {
   x: { icon: TwitterIcon, color: '#000000' },
   linkedin: { icon: LinkedinIcon, color: '#0A66C2' },
   tiktok: { icon: TiktokIcon, color: '#000000' },
-  youtube: { icon: YoutubeIcon, color: '#FF0000' }
+  youtube: { icon: YoutubeIcon, color: '#FF0000' },
+  threads: { icon: ThreadsIcon, color: '#000000' }
 };
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -24,7 +25,7 @@ export default function Calendar() {
   const [selectedPost, setSelectedPost] = useState(null); // For detail modal
   
   // Delete modal states
-  const [deleteTargetId, setDeleteTargetId] = useState(null);
+  const [deleteTargetPost, setDeleteTargetPost] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const fetchPosts = async () => {
@@ -36,23 +37,22 @@ export default function Calendar() {
     fetchPosts();
   }, []);
 
-  const triggerDeleteConfirm = (postId) => {
-    setDeleteTargetId(postId);
+  const triggerDeleteConfirm = (post) => {
+    setDeleteTargetPost(post);
     setIsDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = async () => {
-    if (!deleteTargetId) return;
+  const handleConfirmDelete = async (postId, selectedPlatforms, deleteLocal) => {
     setIsDeleteModalOpen(false);
-    const success = await dbService.deletePost(deleteTargetId);
+    const success = await dbService.deletePost(postId, selectedPlatforms, deleteLocal);
     if (success) {
-      setHistory(prev => prev.filter(h => h.id !== deleteTargetId));
+      fetchPosts();
       setSelectedPost(null);
       window.dispatchEvent(new CustomEvent('show-notification', { 
-        detail: { type: 'success', message: 'Post deleted successfully!' } 
+        detail: { type: 'success', message: deleteLocal ? 'Post deleted successfully!' : 'Post removed from selected platforms!' } 
       }));
     }
-    setDeleteTargetId(null);
+    setDeleteTargetPost(null);
   };
 
   const handlePrevMonth = () => {
@@ -226,6 +226,9 @@ export default function Calendar() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   <span>Status: <strong style={{ textTransform: 'capitalize', color: selectedPost.status === 'published' ? 'var(--success)' : 'var(--accent-blue)' }}>{selectedPost.status}</strong></span>
+                  {selectedPost.visibility && (
+                    <span>Visibility: <strong style={{ textTransform: 'capitalize', color: 'var(--accent-blue)' }}>{selectedPost.visibility}</strong></span>
+                  )}
                   <span>Date: {new Date(selectedPost.date).toLocaleString()}</span>
                 </div>
 
@@ -278,7 +281,7 @@ export default function Calendar() {
                   </button>
 
                   <button 
-                    onClick={() => triggerDeleteConfirm(selectedPost.id)}
+                    onClick={() => triggerDeleteConfirm(selectedPost)}
                     style={{ 
                       background: 'rgba(255, 23, 68, 0.1)', 
                       border: '1px solid rgba(255, 23, 68, 0.2)', 
@@ -305,11 +308,9 @@ export default function Calendar() {
         )}
       </AnimatePresence>
 
-      <ConfirmationModal
+      <DeletePostModal
         isOpen={isDeleteModalOpen}
-        title="Delete Post"
-        message="Are you sure you want to delete this post? This will also remove it from the connected social media accounts."
-        confirmLabel="Delete Post"
+        post={deleteTargetPost}
         onConfirm={handleConfirmDelete}
         onCancel={() => setIsDeleteModalOpen(false)}
       />

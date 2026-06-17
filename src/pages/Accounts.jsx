@@ -30,7 +30,69 @@ export default function Accounts() {
   const [connectTarget, setConnectTarget] = useState(null);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState(() => localStorage.getItem('fb_page_id') || '');
+  const [tokenExpiry, setTokenExpiry] = useState({ facebook: null, instagram: null, youtube: null });
   
+  const checkAndHandleTokenExpiry = (activeConnections) => {
+    const now = Date.now();
+    const threeDays = 3 * 24 * 60 * 60 * 1000;
+    const expiries = { facebook: null, instagram: null, youtube: null };
+
+    // Facebook/Instagram shared token expiry
+    const fbExpiry = localStorage.getItem('fb_token_expiry');
+    if (fbExpiry) {
+      const expTs = parseInt(fbExpiry, 10);
+      expiries.facebook = expTs;
+      expiries.instagram = expTs;
+      if (now > expTs && (activeConnections.includes('facebook') || activeConnections.includes('instagram'))) {
+        // Token expired - auto-disconnect Facebook & Instagram
+        localStorage.removeItem('fb_available_pages');
+        localStorage.removeItem('fb_page_id');
+        localStorage.removeItem('fb_page_name');
+        localStorage.removeItem('fb_access_token');
+        localStorage.removeItem('fb_user_token');
+        localStorage.removeItem('fb_token_expiry');
+        localStorage.removeItem('facebook_username');
+        localStorage.removeItem('ig_business_account_id');
+        localStorage.removeItem('instagram_username');
+        activeConnections = activeConnections.filter(id => id !== 'facebook' && id !== 'instagram');
+        localStorage.setItem('connectedAccounts', JSON.stringify(activeConnections));
+        window.dispatchEvent(new CustomEvent('show-notification', {
+          detail: { type: 'error', message: 'Your Facebook/Instagram session has expired. Please reconnect on the Accounts page.' }
+        }));
+      }
+    }
+
+    // YouTube token expiry
+    const ytExpiry = localStorage.getItem('youtube_token_expiry');
+    if (ytExpiry) {
+      const expTs = parseInt(ytExpiry, 10);
+      expiries.youtube = expTs;
+      if (now > expTs && activeConnections.includes('youtube')) {
+        // Access token expired — check if we have a refresh token
+        const refreshToken = localStorage.getItem('youtube_refresh_token');
+        if (!refreshToken) {
+          // No refresh token - must reconnect manually
+          localStorage.removeItem('youtube_channel_id');
+          localStorage.removeItem('youtube_channel_name');
+          localStorage.removeItem('youtube_access_token');
+          localStorage.removeItem('youtube_refresh_token');
+          localStorage.removeItem('youtube_token_expiry');
+          localStorage.removeItem('youtube_username');
+          localStorage.removeItem('youtube_subscribers');
+          activeConnections = activeConnections.filter(id => id !== 'youtube');
+          localStorage.setItem('connectedAccounts', JSON.stringify(activeConnections));
+          window.dispatchEvent(new CustomEvent('show-notification', {
+            detail: { type: 'error', message: 'Your YouTube session has expired. Please reconnect on the Accounts page.' }
+          }));
+        }
+        // If refresh token exists, the app will silently refresh before next upload
+      }
+    }
+
+    setTokenExpiry(expiries);
+    return activeConnections;
+  };
+
   const cleanupMockConnections = () => {
     let changed = false;
     const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
@@ -95,7 +157,8 @@ export default function Accounts() {
   
   useEffect(() => {
     const loadAccounts = () => {
-      const activeConnections = cleanupMockConnections();
+      let activeConnections = cleanupMockConnections();
+      activeConnections = checkAndHandleTokenExpiry(activeConnections);
       setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: activeConnections.includes(def.id) })));
       setSelectedPageId(localStorage.getItem('fb_page_id') || '');
     };
@@ -147,6 +210,7 @@ export default function Accounts() {
     window.dispatchEvent(new CustomEvent('show-notification', { 
       detail: { type: 'success', message: `${disconnectTarget.name} disconnected successfully` } 
     }));
+    window.dispatchEvent(new CustomEvent('accounts-updated'));
     setDisconnectTarget(null);
   };
 
@@ -179,6 +243,15 @@ export default function Accounts() {
             {connectedAccounts.map(acc => {
               const Icon = acc.icon;
               const isFacebookOrInsta = acc.id === 'facebook' || acc.id === 'instagram';
+              // Compute expiry info for this account
+              const expTs = tokenExpiry[acc.id];
+              const now = Date.now();
+              const msLeft = expTs ? expTs - now : null;
+              const daysLeft = msLeft !== null ? Math.ceil(msLeft / (1000 * 60 * 60 * 24)) : null;
+              const isExpiringSoon = daysLeft !== null && daysLeft <= 7 && daysLeft > 0;
+              const isExpiringVerySoon = daysLeft !== null && daysLeft <= 3 && daysLeft > 0;
+              const hasRefreshToken = acc.id === 'youtube' && !!localStorage.getItem('youtube_refresh_token');
+
               return (
                 <div key={acc.id} className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -190,7 +263,29 @@ export default function Accounts() {
                           Connected {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
                           {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
                           {acc.id === 'youtube' && localStorage.getItem('youtube_channel_name') ? `(${localStorage.getItem('youtube_channel_name')})` : ''}
+                          {acc.id === 'threads' && localStorage.getItem('threads_username') ? `(@${localStorage.getItem('threads_username')})` : ''}
                         </div>
+                        {/* Token expiry badge */}
+                        {isExpiringSoon && (
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            marginTop: '4px', padding: '2px 8px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 600,
+                            background: isExpiringVerySoon ? 'rgba(255,160,0,0.15)' : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${isExpiringVerySoon ? 'rgba(255,160,0,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                            color: isExpiringVerySoon ? '#FFA000' : 'var(--text-secondary)'
+                          }}>
+                            ⏱ Session expires in {daysLeft} day{daysLeft !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                        {hasRefreshToken && (
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            marginTop: '4px', marginLeft: isExpiringSoon ? '6px' : '0', padding: '2px 8px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 600,
+                            background: 'rgba(0,200,100,0.08)', border: '1px solid rgba(0,200,100,0.2)', color: 'var(--success)'
+                          }}>
+                            ✓ Auto-renews
+                          </div>
+                        )}
                       </div>
                     </div>
                     <button onClick={() => handleAccountConnect(acc)} style={{ background: 'rgba(255,61,0,0.1)', border: '1px solid rgba(255,61,0,0.3)', color: 'var(--error)', padding: '0.5rem 1rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -198,6 +293,7 @@ export default function Accounts() {
                     </button>
                   </div>
                   
+
                   {isFacebookOrInsta && (() => {
                     const availablePages = JSON.parse(localStorage.getItem('fb_available_pages') || '[]');
                     
@@ -232,6 +328,7 @@ export default function Accounts() {
                         window.dispatchEvent(new CustomEvent('show-notification', { 
                           detail: { type: 'success', message: `Active profile: ${selected.name}` } 
                         }));
+                        window.dispatchEvent(new CustomEvent('accounts-updated'));
                       }
                     };
 
