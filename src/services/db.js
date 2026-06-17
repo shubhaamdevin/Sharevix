@@ -47,15 +47,27 @@ async function uploadToTmpFiles(blob, fileName) {
 export const dbService = {
   // --- MEDIA STORAGE UPLOAD ---
   async uploadFile(fileOrBase64, fileName) {
+    let blob = fileOrBase64;
+    let name = fileName;
+
+    if (typeof fileOrBase64 === 'string') {
+      if (fileOrBase64.startsWith('blob:')) {
+        try {
+          blob = await fetch(fileOrBase64).then(r => r.blob());
+        } catch (fetchErr) {
+          console.error("Failed to fetch blob from local URL:", fetchErr);
+          return fileOrBase64;
+        }
+      } else {
+        blob = dataURLtoBlob(fileOrBase64);
+        if (!blob) return fileOrBase64;
+      }
+    } else if (fileOrBase64 instanceof File) {
+      name = fileOrBase64.name;
+    }
+
     if (!storage) {
       try {
-        let blob = fileOrBase64;
-        let name = fileName;
-        if (typeof fileOrBase64 === 'string') {
-          blob = dataURLtoBlob(fileOrBase64);
-        } else if (fileOrBase64 instanceof File) {
-          name = fileOrBase64.name;
-        }
         if (blob) {
           return await uploadToTmpFiles(blob, name);
         }
@@ -68,17 +80,9 @@ export const dbService = {
       }
       return fileOrBase64;
     }
+
     try {
-      let blob = fileOrBase64;
-      let name = fileName;
-      if (typeof fileOrBase64 === 'string') {
-        blob = dataURLtoBlob(fileOrBase64);
-        if (!blob) return fileOrBase64;
-      } else if (fileOrBase64 instanceof File) {
-        name = fileOrBase64.name;
-      }
-      
-      const fileExtension = blob.type.split('/')[1] || 'bin';
+      const fileExtension = blob.type?.split('/')[1] || 'bin';
       const finalName = name ? name : `upload_${Date.now()}.${fileExtension}`;
       
       const storageRef = ref(storage, `posts_media/${Date.now()}_${finalName}`);
@@ -97,13 +101,6 @@ export const dbService = {
     } catch (e) {
       console.warn("Firebase Storage upload failed or timed out, trying tmpfiles.org fallback:", e);
       try {
-        let blob = fileOrBase64;
-        let name = fileName;
-        if (typeof fileOrBase64 === 'string') {
-          blob = dataURLtoBlob(fileOrBase64);
-        } else if (fileOrBase64 instanceof File) {
-          name = fileOrBase64.name;
-        }
         if (blob) {
           return await uploadToTmpFiles(blob, name);
         }
