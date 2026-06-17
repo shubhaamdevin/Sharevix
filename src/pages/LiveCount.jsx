@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Radio, Users, AlertCircle, Link2, ChevronRight, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, ThreadsIcon, PinterestIcon } from '../components/Icons';
-import { isFacebookTokenError, disconnectFacebookAndInstagram, isGoogleTokenError, disconnectYouTube } from '../services/tokenHelper';
+import { isFacebookTokenError, disconnectFacebookAndInstagram, isGoogleTokenError, disconnectYouTube, isThreadsTokenError, disconnectThreads } from '../services/tokenHelper';
 
 const platformDetails = {
   facebook: { name: 'Facebook', icon: FacebookIcon, color: '#1877F2', type: 'Fans' },
@@ -179,15 +179,20 @@ export default function LiveCount() {
             });
             const data = await res.json();
             if (res.ok) {
-              const count = data.follower_count || 0;
+              const count = data.follower_count ?? data.followers_count ?? 0;
               setBaseCount(count);
               setDisplayCount(count);
               if (showLoading) setIsLoading(false);
               setIsTicking(count > 0);
               return;
+            } else {
+              throw data.error || new Error(data.error?.message || "Failed to query Threads profile");
             }
           } catch (e) {
-            console.error(e);
+            console.error("Threads LiveCount error:", e);
+            if (isThreadsTokenError(e)) {
+              disconnectThreads();
+            }
           }
         }
       }

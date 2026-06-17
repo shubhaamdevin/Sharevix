@@ -50,7 +50,7 @@ export const dbService = {
       });
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 4000)
+        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 300000)
       );
 
       const downloadURL = await Promise.race([uploadPromise, timeoutPromise]);
@@ -135,7 +135,7 @@ export const dbService = {
       });
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Firestore read timeout")), 3000)
+        setTimeout(() => reject(new Error("Firestore read timeout")), 30000)
       );
 
       const result = await Promise.race([fetchPromise, timeoutPromise]);
@@ -284,7 +284,7 @@ export const dbService = {
       }));
 
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Firestore write timeout")), 3500)
+        setTimeout(() => reject(new Error("Firestore write timeout")), 30000)
       );
 
       const result = await Promise.race([addPromise, timeoutPromise]);

@@ -94,3 +94,46 @@ export const disconnectYouTube = () => {
     } 
   }));
 };
+
+export const isThreadsTokenError = (error) => {
+  if (!error) return false;
+  const code = error.code || error.error?.code;
+  const errMsg = error.message || error.error?.message || (typeof error === 'string' ? error : '');
+
+  // API error code 190 represents OAuthException / invalid/expired token.
+  if (code === 190) return true;
+
+  const lowerMsg = errMsg.toLowerCase();
+  return (
+    lowerMsg.includes('error validating access token') ||
+    lowerMsg.includes('session has expired') ||
+    lowerMsg.includes('expired') ||
+    lowerMsg.includes('invalid access token') ||
+    lowerMsg.includes('active access token') ||
+    lowerMsg.includes('malformed access token') ||
+    lowerMsg.includes('has expired')
+  );
+};
+
+export const disconnectThreads = () => {
+  // Clear Threads credentials
+  localStorage.removeItem('threads_username');
+  localStorage.removeItem('threads_access_token');
+  localStorage.removeItem('threads_user_id');
+
+  // Retrieve existing connection list and remove threads
+  const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
+  const newConnections = savedConnections.filter(id => id !== 'threads');
+  localStorage.setItem('connectedAccounts', JSON.stringify(newConnections));
+
+  // Trigger page / state reloads across listeners
+  window.dispatchEvent(new CustomEvent('accounts-updated'));
+
+  // Notify the user via a global notification toast
+  window.dispatchEvent(new CustomEvent('show-notification', { 
+    detail: { 
+      type: 'error', 
+      message: 'Your Threads session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.' 
+    } 
+  }));
+};
