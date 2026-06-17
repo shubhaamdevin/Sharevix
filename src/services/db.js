@@ -182,6 +182,36 @@ export const dbService = {
       }
     }
 
+    if (targetPost && targetPost.threads_post_id) {
+      const token = localStorage.getItem('threads_access_token');
+      if (token) {
+        try {
+          console.log(`Sync-deleting Threads post: ${targetPost.threads_post_id}`);
+          const res = await fetch('/api/threads-proxy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              path: `/${targetPost.threads_post_id}`,
+              targetMethod: 'DELETE',
+              params: {
+                access_token: token
+              }
+            })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            console.log("Deleted post from Threads API successfully", data);
+          } else {
+            console.error("Threads API delete error:", data);
+          }
+        } catch (err) {
+          console.error("Failed to call Threads delete API:", err);
+        }
+      }
+    }
+
     try {
       const postRef = doc(db, "posts", postId);
       await deleteDoc(postRef);
