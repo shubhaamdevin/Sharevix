@@ -21,7 +21,10 @@ function dataURLtoBlob(dataurl) {
 
 async function uploadToTmpFiles(blob, fileName) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
+  const blobSize = blob.size || 0;
+  // Dynamic timeout: 100 KB/s baseline, Min: 15s, Max: 10 mins
+  const timeoutDuration = Math.max(15000, Math.min(600000, Math.ceil((blobSize / 102400) * 1000)));
+  const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
 
   try {
     const formData = new FormData();
@@ -99,8 +102,10 @@ export const dbService = {
         return downloadURL;
       });
 
-      const isVideoFile = blob.type?.startsWith('video');
-      const timeoutDuration = isVideoFile ? 300000 : 20000; // 5 mins for video, 20 secs for image/etc.
+      // Calculate timeout dynamically based on file size (assuming 100 KB/s upload speed)
+      // Min: 20 seconds, Max: 10 minutes (600,000 ms)
+      const blobSize = blob.size || 0;
+      const timeoutDuration = Math.max(20000, Math.min(600000, Math.ceil((blobSize / 102400) * 1000)));
 
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error("Firebase Storage upload timeout")), timeoutDuration)
