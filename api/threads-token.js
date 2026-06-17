@@ -15,8 +15,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const client_id = process.env.VITE_THREADS_CLIENT_ID || '2375353406286370';
-    const client_secret = process.env.THREADS_CLIENT_SECRET || '9ecaa92f6f5af995f3d137cb8f2d9e72';
+    const client_id = process.env.VITE_THREADS_CLIENT_ID || '1326065365671425';
+    const client_secret = process.env.THREADS_CLIENT_SECRET || '0d69561cdb902abe89d902bd5c46bfb7';
 
     if (!client_id || !client_secret) {
       return res.status(500).json({ error: 'Threads VITE_THREADS_CLIENT_ID or THREADS_CLIENT_SECRET environment variables are not configured on Vercel' });
