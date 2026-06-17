@@ -163,7 +163,20 @@ export default function LiveCount() {
         const token = localStorage.getItem('threads_access_token');
         if (token) {
           try {
-            const res = await fetch(`https://graph.threads.net/v1.0/me?fields=follower_count&access_token=${token}`);
+            const res = await fetch('/api/threads-proxy', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                path: '/me',
+                targetMethod: 'GET',
+                params: {
+                  fields: 'follower_count',
+                  access_token: token
+                }
+              })
+            });
             const data = await res.json();
             if (res.ok) {
               const count = data.follower_count || 0;

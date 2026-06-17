@@ -2020,7 +2020,10 @@ export default function CreatePost() {
           const threadsMedia = getPlatformMedia('threads');
           const threadsUploadedMedia = uploadedPlatformMedia.threads !== undefined ? uploadedPlatformMedia.threads : (uploadedPlatformMedia.universal || []);
 
-          let containerUrl = `https://graph.threads.net/v1.0/${userId}/threads?text=${encodeURIComponent(postText)}&access_token=${token}`;
+          const params = {
+            text: postText,
+            access_token: token
+          };
           let isVideo = false;
           let isImage = false;
 
@@ -2030,16 +2033,28 @@ export default function CreatePost() {
             isImage = threadsUploadedMedia[0].type.startsWith('image');
 
             if (isVideo) {
-              containerUrl += `&media_type=VIDEO&video_url=${encodeURIComponent(fileUrl)}`;
+              params.media_type = 'VIDEO';
+              params.video_url = fileUrl;
             } else if (isImage) {
-              containerUrl += `&media_type=IMAGE&image_url=${encodeURIComponent(fileUrl)}`;
+              params.media_type = 'IMAGE';
+              params.image_url = fileUrl;
             }
           } else {
-            containerUrl += `&media_type=TEXT`;
+            params.media_type = 'TEXT';
           }
 
-          // 1. Create Media Container
-          const containerRes = await fetch(containerUrl, { method: 'POST' });
+          // 1. Create Media Container via Vercel proxy
+          const containerRes = await fetch('/api/threads-proxy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              path: `/${userId}/threads`,
+              targetMethod: 'POST',
+              params
+            })
+          });
           const containerData = await containerRes.json();
           if (!containerRes.ok) {
             throw containerData.error || new Error(containerData.error?.message || "Failed to create Threads media container.");
@@ -2055,7 +2070,20 @@ export default function CreatePost() {
 
             while (mediaStatus === 'IN_PROGRESS' && retries < maxRetries) {
               await new Promise(r => setTimeout(r, 4000));
-              const statusRes = await fetch(`https://graph.threads.net/v1.0/${containerId}?fields=status,error_message&access_token=${token}`);
+              const statusRes = await fetch('/api/threads-proxy', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  path: `/${containerId}`,
+                  targetMethod: 'GET',
+                  params: {
+                    fields: 'status,error_message',
+                    access_token: token
+                  }
+                })
+              });
               const statusData = await statusRes.json();
               if (!statusRes.ok) {
                 throw statusData.error || new Error(statusData.error?.message || "Failed to check Threads media processing status");
@@ -2071,8 +2099,21 @@ export default function CreatePost() {
             }
           }
 
-          // 3. Publish Container
-          const publishRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads_publish?creation_id=${containerId}&access_token=${token}`, { method: 'POST' });
+          // 3. Publish Container via Vercel proxy
+          const publishRes = await fetch('/api/threads-proxy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              path: `/${userId}/threads_publish`,
+              targetMethod: 'POST',
+              params: {
+                creation_id: containerId,
+                access_token: token
+              }
+            })
+          });
           const publishData = await publishRes.json();
           if (!publishRes.ok) {
             throw publishData.error || new Error(publishData.error?.message || "Failed to publish Threads media container.");

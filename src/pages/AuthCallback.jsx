@@ -126,8 +126,21 @@ export default function AuthCallback() {
 
             const accessToken = exchangeData.access_token;
             
-            // Query Threads /me profile API
-            const profileRes = await fetch(`https://graph.threads.net/v1.0/me?fields=id,username,name&access_token=${accessToken}`);
+            // Query Threads /me profile API via proxy
+            const profileRes = await fetch('/api/threads-proxy', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                path: '/me',
+                targetMethod: 'GET',
+                params: {
+                  fields: 'id,username,name',
+                  access_token: accessToken
+                }
+              })
+            });
             const profileData = await profileRes.json();
             
             if (profileRes.ok && profileData.username) {
