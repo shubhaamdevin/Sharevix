@@ -81,13 +81,9 @@ export default function Accounts() {
       changed = true;
     }
 
-    // Always exclude X and Threads from active connections for now as they are coming soon
+    // Always exclude X from active connections for now as it is coming soon
     if (newConnections.includes('x')) {
       newConnections = newConnections.filter(id => id !== 'x');
-      changed = true;
-    }
-    if (newConnections.includes('threads')) {
-      newConnections = newConnections.filter(id => id !== 'threads');
       changed = true;
     }
 
