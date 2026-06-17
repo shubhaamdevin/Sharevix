@@ -92,6 +92,53 @@ export default function AuthCallback() {
       const tokenToUse = accessToken || code;
 
       if (tokenToUse && state) {
+        // Handle mock connection immediately without countdown
+        if (tokenToUse.startsWith('mock_')) {
+          const connectedAccounts = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
+          if (!connectedAccounts.includes(state)) {
+            connectedAccounts.push(state);
+            localStorage.setItem('connectedAccounts', JSON.stringify(connectedAccounts));
+          }
+
+          if (state === 'youtube') {
+            localStorage.setItem('youtube_channel_id', 'UC_mock_channel_id_123');
+            localStorage.setItem('youtube_channel_name', 'Mock YouTube Channel');
+            localStorage.setItem('youtube_access_token', tokenToUse);
+            localStorage.setItem('youtube_username', 'mock_youtube_creator');
+            localStorage.setItem('youtube_subscribers', '12500');
+          } else {
+            const mockPages = [
+              { 
+                id: '123456789012345', 
+                name: 'Mock Business Page', 
+                access_token: tokenToUse, 
+                category: 'Business',
+                instagram_business_account: {
+                  id: '987654321098765',
+                  username: 'mock_instagram_business',
+                  name: 'Mock Instagram Business'
+                }
+              }
+            ];
+            localStorage.setItem('fb_available_pages', JSON.stringify(mockPages));
+            localStorage.setItem('fb_page_id', mockPages[0].id);
+            localStorage.setItem('fb_page_name', mockPages[0].name);
+            localStorage.setItem('fb_access_token', mockPages[0].access_token);
+            
+            if (state === 'instagram') {
+              localStorage.setItem('ig_business_account_id', '987654321098765');
+              localStorage.setItem('instagram_username', 'mock_instagram_business');
+            } else {
+              localStorage.setItem('facebook_username', mockPages[0].name);
+            }
+          }
+
+          setStatus('success');
+          setMessage(`Successfully connected to ${state} (Mock Mode)! Redirecting...`);
+          setTimeout(() => navigate('/accounts'), 1500);
+          return;
+        }
+
         const connectedAccounts = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
         if (!connectedAccounts.includes(state)) {
           connectedAccounts.push(state);

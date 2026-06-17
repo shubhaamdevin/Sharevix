@@ -638,7 +638,12 @@ export default function CreatePost() {
     const fbPageId = localStorage.getItem('fb_page_id');
     const igBusinessId = localStorage.getItem('ig_business_account_id');
 
-    if (selectedTargets.includes('youtube')) mockTargets.push('YouTube');
+    if (selectedTargets.includes('youtube')) {
+      const ytToken = localStorage.getItem('youtube_access_token');
+      if (!ytToken || ytToken.startsWith('mock_')) {
+        mockTargets.push('YouTube');
+      }
+    }
     if (selectedTargets.includes('x')) mockTargets.push('X (Twitter)');
     if (selectedTargets.includes('threads')) mockTargets.push('Threads');
     
@@ -2578,8 +2583,9 @@ export default function CreatePost() {
                 <div>
                   <strong>Real API Posting Required: {getMockTargets().join(', ')}.</strong>
                   <div style={{ opacity: 0.85, marginTop: '0.25rem' }}>
-                    {getMockTargets().some(t => t === 'YouTube' || t === 'X (Twitter)' || t === 'Threads') && "YouTube, X, and Threads are currently not integrated with live posting APIs. "}
-                    {getMockTargets().some(t => t === 'Facebook' || t === 'Instagram') && "Facebook and Instagram are connected in simulation mode. Please connect your real Page on the Accounts page to enable publishing."}
+                    {getMockTargets().some(t => t === 'X (Twitter)' || t === 'Threads') && "X (Twitter) and Threads are currently not integrated with live posting APIs. "}
+                    {getMockTargets().some(t => t === 'YouTube' || t === 'Facebook' || t === 'Instagram') && 
+                      `The following accounts are connected in simulation mode: ${getMockTargets().filter(t => t === 'YouTube' || t === 'Facebook' || t === 'Instagram').join(', ')}. Please connect a real account/page on the Accounts page to enable live publishing.`}
                   </div>
                 </div>
               </div>
