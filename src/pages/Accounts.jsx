@@ -14,11 +14,11 @@ import { generateOAuthUrl } from '../services/oauth';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 const platformDefinitions = [
-  { id: 'facebook', name: 'Facebook', icon: FacebookIcon, color: '#1877F2' },
-  { id: 'instagram', name: 'Instagram', icon: InstagramIcon, color: '#E1306C' },
-  { id: 'threads', name: 'Threads', icon: ThreadsIcon, color: '#ffffff' },
-  { id: 'youtube', name: 'YouTube', icon: YoutubeIcon, color: '#FF0000' },
-  { id: 'x', name: 'X (Twitter)', icon: TwitterIcon, color: '#ffffff' }
+  { id: 'facebook', name: 'Facebook', icon: FacebookIcon, color: '#1877F2', comingSoon: false },
+  { id: 'instagram', name: 'Instagram', icon: InstagramIcon, color: '#E1306C', comingSoon: false },
+  { id: 'youtube', name: 'YouTube', icon: YoutubeIcon, color: '#FF0000', comingSoon: false },
+  { id: 'threads', name: 'Threads', icon: ThreadsIcon, color: '#ffffff', comingSoon: true },
+  { id: 'x', name: 'X (Twitter)', icon: TwitterIcon, color: '#ffffff', comingSoon: true }
 ];
 
 export default function Accounts() {
@@ -31,30 +31,76 @@ export default function Accounts() {
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [selectedPageId, setSelectedPageId] = useState(() => localStorage.getItem('fb_page_id') || '');
   
-  const isPlatformMock = (id) => {
-    if (id === 'x' || id === 'threads') return true;
-    if (id === 'youtube') {
-      const token = localStorage.getItem('youtube_access_token');
-      return !token || token.startsWith('mock_');
+  const cleanupMockConnections = () => {
+    let changed = false;
+    const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
+    let newConnections = [...savedConnections];
+
+    // Check YouTube
+    const ytToken = localStorage.getItem('youtube_access_token');
+    if (ytToken && ytToken.startsWith('mock_')) {
+      localStorage.removeItem('youtube_channel_id');
+      localStorage.removeItem('youtube_channel_name');
+      localStorage.removeItem('youtube_access_token');
+      localStorage.removeItem('youtube_username');
+      localStorage.removeItem('youtube_subscribers');
+      newConnections = newConnections.filter(id => id !== 'youtube');
+      changed = true;
     }
-    if (id === 'facebook') {
-      const pageId = localStorage.getItem('fb_page_id');
-      const token = localStorage.getItem('fb_access_token');
-      return !pageId || pageId === '123456789012345' || !token || token.startsWith('mock_');
+
+    // Check Facebook/Instagram
+    const fbToken = localStorage.getItem('fb_access_token');
+    const fbPageId = localStorage.getItem('fb_page_id');
+    const igId = localStorage.getItem('ig_business_account_id');
+    const hasMockFb = (fbToken && fbToken.startsWith('mock_')) || fbPageId === '123456789012345';
+    const hasMockIg = hasMockFb || (igId && (igId.startsWith('mock_') || igId === '987654321098765'));
+
+    if (hasMockFb) {
+      localStorage.removeItem('fb_available_pages');
+      localStorage.removeItem('fb_page_id');
+      localStorage.removeItem('fb_page_name');
+      localStorage.removeItem('fb_access_token');
+      localStorage.removeItem('facebook_username');
+      newConnections = newConnections.filter(id => id !== 'facebook');
+      changed = true;
     }
-    if (id === 'instagram') {
-      const pageId = localStorage.getItem('fb_page_id');
-      const token = localStorage.getItem('fb_access_token');
-      const igId = localStorage.getItem('ig_business_account_id');
-      return !pageId || pageId === '123456789012345' || !token || token.startsWith('mock_') || !igId || igId === 'mock_ig_business_account_id_123456' || igId === '987654321098765';
+
+    if (hasMockIg) {
+      localStorage.removeItem('ig_business_account_id');
+      localStorage.removeItem('instagram_username');
+      newConnections = newConnections.filter(id => id !== 'instagram');
+      changed = true;
     }
-    return false;
+
+    // Check Threads
+    const threadsToken = localStorage.getItem('threads_access_token');
+    if (threadsToken && threadsToken.startsWith('mock_')) {
+      localStorage.removeItem('threads_username');
+      localStorage.removeItem('threads_access_token');
+      newConnections = newConnections.filter(id => id !== 'threads');
+      changed = true;
+    }
+
+    // Always exclude X and Threads from active connections for now as they are coming soon
+    if (newConnections.includes('x')) {
+      newConnections = newConnections.filter(id => id !== 'x');
+      changed = true;
+    }
+    if (newConnections.includes('threads')) {
+      newConnections = newConnections.filter(id => id !== 'threads');
+      changed = true;
+    }
+
+    if (changed) {
+      localStorage.setItem('connectedAccounts', JSON.stringify(newConnections));
+    }
+    return newConnections;
   };
   
   useEffect(() => {
     const loadAccounts = () => {
-      const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
-      setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: savedConnections.includes(def.id) })));
+      const activeConnections = cleanupMockConnections();
+      setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: activeConnections.includes(def.id) })));
       setSelectedPageId(localStorage.getItem('fb_page_id') || '');
     };
     loadAccounts();
@@ -67,8 +113,7 @@ export default function Accounts() {
       setDisconnectTarget(acc);
       setIsDisconnectModalOpen(true);
     } else {
-      setConnectTarget(acc);
-      setIsConnectModalOpen(true);
+      window.location.href = generateOAuthUrl(acc.id);
     }
   };
 
@@ -145,20 +190,11 @@ export default function Accounts() {
                       <Icon size={40} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{acc.name}</div>
-                        {isPlatformMock(acc.id) ? (
-                          <div style={{ fontSize: '0.85rem', color: '#ffb300', fontWeight: 500 }}>
-                            Connected (Mock Simulation) {acc.id === 'youtube' && localStorage.getItem('youtube_channel_name') ? `(${localStorage.getItem('youtube_channel_name')})` : ''}
-                            {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
-                            {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
-                            {acc.id === 'threads' && localStorage.getItem('threads_username') ? `(@${localStorage.getItem('threads_username')})` : ''}
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
-                            Connected {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
-                            {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
-                            {acc.id === 'youtube' && localStorage.getItem('youtube_channel_name') ? `(${localStorage.getItem('youtube_channel_name')})` : ''}
-                          </div>
-                        )}
+                        <div style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
+                          Connected {acc.id === 'facebook' && localStorage.getItem('facebook_username') ? `(${localStorage.getItem('facebook_username')})` : ''}
+                          {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
+                          {acc.id === 'youtube' && localStorage.getItem('youtube_channel_name') ? `(${localStorage.getItem('youtube_channel_name')})` : ''}
+                        </div>
                       </div>
                     </div>
                     <button onClick={() => handleAccountConnect(acc)} style={{ background: 'rgba(255,61,0,0.1)', border: '1px solid rgba(255,61,0,0.3)', color: 'var(--error)', padding: '0.5rem 1rem', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -291,23 +327,29 @@ export default function Accounts() {
                     marginLeft: '0.5rem'
                   }}>{acc.name}</div>
                 </div>
-                <button 
-                  onClick={() => handleAccountConnect(acc)} 
-                  style={{ 
-                    background: isHovered ? acc.color : 'var(--panel-border)', 
-                    border: '1px solid transparent', 
-                    color: isHovered ? '#ffffff' : 'var(--text-secondary)', 
-                    padding: '0.5rem 1.25rem', 
-                    borderRadius: '20px', 
-                    cursor: 'pointer', 
-                    fontSize: '0.85rem', 
-                    fontWeight: 600,
-                    boxShadow: isHovered ? `0 0 15px ${acc.color}40` : 'none',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  Connect
-                </button>
+                {acc.comingSoon ? (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.05)', padding: '4px 10px', borderRadius: '12px', border: '1px solid var(--panel-border)', fontWeight: 500 }}>
+                    Soon
+                  </span>
+                ) : (
+                  <button 
+                    onClick={() => handleAccountConnect(acc)} 
+                    style={{ 
+                      background: isHovered ? acc.color : 'var(--panel-border)', 
+                      border: '1px solid transparent', 
+                      color: isHovered ? '#ffffff' : 'var(--text-secondary)', 
+                      padding: '0.5rem 1.25rem', 
+                      borderRadius: '20px', 
+                      cursor: 'pointer', 
+                      fontSize: '0.85rem', 
+                      fontWeight: 600,
+                      boxShadow: isHovered ? `0 0 15px ${acc.color}40` : 'none',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    Connect
+                  </button>
+                )}
               </div>
             );
           })}
@@ -326,149 +368,7 @@ export default function Accounts() {
         }}
       />
 
-      {/* Connect Modal */}
-      <AnimatePresence>
-        {isConnectModalOpen && connectTarget && (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            style={{ 
-              position: 'fixed', 
-              top: 0, 
-              left: 0, 
-              width: '100%', 
-              height: '100%', 
-              background: 'rgba(0,0,0,0.8)', 
-              zIndex: 99999, 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              backdropFilter: 'blur(10px)',
-              padding: '1rem'
-            }}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }} 
-              animate={{ scale: 1, y: 0 }} 
-              exit={{ scale: 0.9, y: 20 }} 
-              style={{ 
-                background: 'var(--bg-dark)', 
-                border: '1px solid var(--panel-border)', 
-                borderRadius: '24px', 
-                padding: '2.5rem', 
-                width: '100%',
-                maxWidth: '460px', 
-                boxShadow: '0 20px 50px rgba(0,0,0,0.6)', 
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1.5rem',
-                textAlign: 'center',
-                alignItems: 'center'
-              }}
-            >
-              {/* Close Button */}
-              <button 
-                onClick={() => setIsConnectModalOpen(false)} 
-                style={{ 
-                  position: 'absolute', 
-                  top: '1.25rem', 
-                  right: '1.25rem', 
-                  background: 'transparent', 
-                  border: 'none', 
-                  color: 'var(--text-secondary)', 
-                  cursor: 'pointer',
-                  transition: 'color 0.2s'
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = '#fff'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-              >
-                <X size={18} />
-              </button>
-
-              <div style={{ 
-                width: '64px', 
-                height: '64px', 
-                borderRadius: '50%', 
-                background: `${connectTarget.color}15`, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                border: `1px solid ${connectTarget.color}30`,
-                marginBottom: '0.5rem'
-              }}>
-                {React.createElement(connectTarget.icon, { size: 36 })}
-              </div>
-
-              <div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: 800, margin: '0 0 0.5rem' }}>
-                  Connect {connectTarget.name}
-                </h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6', margin: 0 }}>
-                  Choose how you want to connect your account. Use Real Connection for live posting (requires an active Meta App) or Mock Connection for local development and sandbox testing.
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', marginTop: '0.5rem' }}>
-                <button 
-                  onClick={() => {
-                    setIsConnectModalOpen(false);
-                    window.location.href = generateOAuthUrl(connectTarget.id);
-                  }}
-                  style={{ 
-                    width: '100%', 
-                    background: connectTarget.color,
-                    border: 'none', 
-                    color: '#fff', 
-                    padding: '0.85rem', 
-                    borderRadius: '12px', 
-                    fontSize: '0.95rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: `0 4px 15px ${connectTarget.color}30`,
-                    transition: 'transform 0.2s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-                >
-                  Real OAuth Connection
-                </button>
-
-                <button 
-                  onClick={() => {
-                    setIsConnectModalOpen(false);
-                    const mockUrl = `/auth/callback?code=mock_code_${Date.now()}&state=${connectTarget.id}`;
-                    navigate(mockUrl);
-                  }}
-                  style={{ 
-                    width: '100%', 
-                    background: 'rgba(255, 255, 255, 0.06)',
-                    border: '1px solid rgba(255, 255, 255, 0.15)', 
-                    color: 'var(--text-primary)', 
-                    padding: '0.85rem', 
-                    borderRadius: '12px', 
-                    fontSize: '0.95rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.12)';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
-                    e.currentTarget.style.transform = 'none';
-                  }}
-                >
-                  Simulated Mock Connection
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Connect Modal Removed */}
     </motion.div>
   );
 }

@@ -632,34 +632,7 @@ export default function CreatePost() {
 
   const [selectedDevice, setSelectedDevice] = useState(devices[0]);
   
-  const getMockTargets = () => {
-    const mockTargets = [];
-    const fbToken = localStorage.getItem('fb_access_token');
-    const fbPageId = localStorage.getItem('fb_page_id');
-    const igBusinessId = localStorage.getItem('ig_business_account_id');
 
-    if (selectedTargets.includes('youtube')) {
-      const ytToken = localStorage.getItem('youtube_access_token');
-      if (!ytToken || ytToken.startsWith('mock_')) {
-        mockTargets.push('YouTube');
-      }
-    }
-    if (selectedTargets.includes('x')) mockTargets.push('X (Twitter)');
-    if (selectedTargets.includes('threads')) mockTargets.push('Threads');
-    
-    if (selectedTargets.includes('facebook')) {
-      if (!fbPageId || fbPageId === '123456789012345' || !fbToken || fbToken.startsWith('mock_')) {
-        mockTargets.push('Facebook');
-      }
-    }
-    if (selectedTargets.includes('instagram')) {
-      const isIgMock = !fbPageId || fbPageId === '123456789012345' || !fbToken || fbToken.startsWith('mock_') || !igBusinessId || igBusinessId === 'mock_ig_business_account_id_123456' || igBusinessId === '987654321098765';
-      if (isIgMock) {
-        mockTargets.push('Instagram');
-      }
-    }
-    return mockTargets;
-  };
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
   const deviceDropdownRef = useRef(null);
 
@@ -1371,7 +1344,7 @@ export default function CreatePost() {
   const [allAccounts, setAllAccounts] = useState([]);
   useEffect(() => {
     const loadConnections = () => {
-      const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '["facebook", "instagram", "x"]');
+      const savedConnections = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
       setAllAccounts(platformDefinitions.map(def => ({ ...def, connected: savedConnections.includes(def.id) })));
       setSelectedTargets(prev => prev.filter(pId => savedConnections.includes(pId)));
     };
@@ -1798,16 +1771,11 @@ export default function CreatePost() {
           }
         } catch (fbApiErr) {
           console.error("Facebook API error:", fbApiErr);
-          if (pageId === '123456789012345' || token.startsWith('mock_')) {
-            console.log("Facebook API failed, falling back to simulated success for testing");
-            postData.fb_post_id = `simulated_fb_post_${Date.now()}`;
-          } else {
-            if (isFacebookTokenError(fbApiErr)) {
-              disconnectFacebookAndInstagram();
-              throw new Error("Your Facebook session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.");
-            }
-            throw new Error(`Facebook API posting failed: ${fbApiErr.message || fbApiErr}`);
+          if (isFacebookTokenError(fbApiErr)) {
+            disconnectFacebookAndInstagram();
+            throw new Error("Your Facebook session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.");
           }
+          throw new Error(`Facebook API posting failed: ${fbApiErr.message || fbApiErr}`);
         }
       }
 
@@ -1849,42 +1817,30 @@ export default function CreatePost() {
           const postText = `${igContent.title ? igContent.title + '\n' : ''}${igContent.description || ''}`;
 
           let igBusinessAccountId = localStorage.getItem('ig_business_account_id');
-          let isInstagramMock = pageId === '123456789012345' || token.startsWith('mock_');
 
           if (!igBusinessAccountId) {
             try {
-              if (isInstagramMock) {
-                igBusinessAccountId = '987654321098765';
+              const pageRes = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=instagram_business_account&access_token=${token}`);
+              const pageData = await pageRes.json();
+              if (pageRes.ok && pageData.instagram_business_account) {
+                igBusinessAccountId = pageData.instagram_business_account.id;
                 localStorage.setItem('ig_business_account_id', igBusinessAccountId);
+              } else if (!pageRes.ok) {
+                throw pageData.error || new Error(pageData.error?.message || "Failed to resolve Instagram account");
               } else {
-                const pageRes = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=instagram_business_account&access_token=${token}`);
-                const pageData = await pageRes.json();
-                if (pageRes.ok && pageData.instagram_business_account) {
-                  igBusinessAccountId = pageData.instagram_business_account.id;
-                  localStorage.setItem('ig_business_account_id', igBusinessAccountId);
-                } else if (!pageRes.ok) {
-                  throw pageData.error || new Error(pageData.error?.message || "Failed to resolve Instagram account");
-                } else {
-                  console.warn("No real linked Instagram Business Account. Falling back to mock ID.");
-                  igBusinessAccountId = '987654321098765';
-                  localStorage.setItem('ig_business_account_id', igBusinessAccountId);
-                  isInstagramMock = true;
-                }
+                throw new Error("No linked Instagram Business Account was found on this Facebook Page.");
               }
             } catch (err) {
-              console.warn("Failed to resolve Instagram Business Account, using mock:", err);
+              console.error("Failed to resolve Instagram Business Account:", err);
               if (isFacebookTokenError(err)) {
                 throw err;
               }
-              igBusinessAccountId = '987654321098765';
-              localStorage.setItem('ig_business_account_id', igBusinessAccountId);
-              isInstagramMock = true;
+              throw new Error(`Failed to resolve Instagram Business Account: ${err.message || err}`);
             }
           }
 
-          if (isInstagramMock || igBusinessAccountId === '987654321098765') {
-            throw new Error("Instagram is connected in Mock/Sandbox simulation. Please reconnect your real Instagram Business Account under Accounts page.");
-          } else {
+          {
+            // Real Instagram Publishing
             // Real Instagram Publishing
             const igMedia = getPlatformMedia('instagram');
             const igUploadedMedia = uploadedPlatformMedia.instagram !== undefined ? uploadedPlatformMedia.instagram : (uploadedPlatformMedia.universal || []);
@@ -1945,16 +1901,11 @@ export default function CreatePost() {
           }
         } catch (igApiErr) {
           console.error("Instagram API error:", igApiErr);
-          if (pageId === '123456789012345' || token.startsWith('mock_')) {
-            console.log("Instagram API failed, falling back to simulated success for testing");
-            postData.ig_post_id = `simulated_ig_post_${Date.now()}`;
-          } else {
-            if (isFacebookTokenError(igApiErr)) {
-              disconnectFacebookAndInstagram();
-              throw new Error("Your Facebook/Instagram session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.");
-            }
-            throw new Error(`Instagram API posting failed: ${igApiErr.message || igApiErr}`);
+          if (isFacebookTokenError(igApiErr)) {
+            disconnectFacebookAndInstagram();
+            throw new Error("Your Facebook/Instagram session has expired. The account has been automatically disconnected. Please reconnect on the Accounts page.");
           }
+          throw new Error(`Instagram API posting failed: ${igApiErr.message || igApiErr}`);
         }
       }
 
@@ -2047,16 +1998,12 @@ export default function CreatePost() {
 
       // Simulated Threads Publishing
       if (status === 'published' && selectedTargets.includes('threads')) {
-        console.log("Simulating post upload to Threads...");
-        await new Promise(resolve => setTimeout(resolve, 800));
-        postData.threads_post_id = `mock_threads_post_id_${Date.now()}`;
+        throw new Error("Threads integration is currently coming soon and simulated posting is disabled.");
       }
 
       // Simulated X (Twitter) Publishing
       if (status === 'published' && selectedTargets.includes('x')) {
-        console.log("Simulating post upload to X (Twitter)...");
-        await new Promise(resolve => setTimeout(resolve, 800));
-        postData.x_post_id = `mock_x_post_id_${Date.now()}`;
+        throw new Error("X (Twitter) integration is currently coming soon and simulated posting is disabled.");
       }
 
       if (editPost && editPost.id) {
@@ -2574,31 +2521,7 @@ export default function CreatePost() {
               )}
             </AnimatePresence>
 
-            {getMockTargets().length > 0 && (
-              <div style={{ 
-                background: 'rgba(239, 68, 68, 0.05)', 
-                border: '1px solid rgba(239, 68, 68, 0.2)', 
-                padding: '1rem', 
-                borderRadius: '12px', 
-                color: '#ef4444', 
-                fontSize: '0.85rem', 
-                lineHeight: '1.4', 
-                display: 'flex', 
-                alignItems: 'flex-start', 
-                gap: '0.75rem',
-                marginBottom: '1rem'
-              }}>
-                <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-                <div>
-                  <strong>Real API Posting Required: {getMockTargets().join(', ')}.</strong>
-                  <div style={{ opacity: 0.85, marginTop: '0.25rem' }}>
-                    {getMockTargets().some(t => t === 'X (Twitter)' || t === 'Threads') && "X (Twitter) and Threads are currently not integrated with live posting APIs. "}
-                    {getMockTargets().some(t => t === 'YouTube' || t === 'Facebook' || t === 'Instagram') && 
-                      `The following accounts are connected in simulation mode: ${getMockTargets().filter(t => t === 'YouTube' || t === 'Facebook' || t === 'Instagram').join(', ')}. Please connect a real account/page on the Accounts page to enable live publishing.`}
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             <div style={{ display: 'flex', gap: '1rem' }}>
               <motion.button type="button" onClick={() => handlePublish('draft')} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="btn-secondary" disabled={isPublishing} style={{ flex: 1, fontSize: '1rem', padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>

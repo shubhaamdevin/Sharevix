@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
@@ -7,57 +7,6 @@ export default function AuthCallback() {
   const navigate = useNavigate();
   const [status, setStatus] = useState('processing'); // processing, success, error
   const [message, setMessage] = useState('Connecting your account...');
-  const [countdown, setCountdown] = useState(null);
-  const [mockConfig, setMockConfig] = useState(null);
-  const mockConfigRef = useRef(null);
-  const hasConnectedMock = useRef(false);
-
-  const handleConnectMockNow = () => {
-    if (hasConnectedMock.current) return;
-    hasConnectedMock.current = true;
-
-    const config = mockConfigRef.current;
-    
-    if (config?.state === 'youtube') {
-      localStorage.setItem('youtube_channel_id', 'UC_mock_channel_id_123');
-      localStorage.setItem('youtube_channel_name', 'Mock YouTube Channel');
-      localStorage.setItem('youtube_access_token', config?.token || 'mock_youtube_access_token_123');
-      localStorage.setItem('youtube_username', 'mock_youtube_creator');
-      localStorage.setItem('youtube_subscribers', '12500');
-    } else if (config?.state === 'threads') {
-      localStorage.setItem('threads_username', 'mock_threads_creator');
-      localStorage.setItem('threads_access_token', config?.token || 'mock_threads_token_123');
-    } else {
-      const mockPages = [
-        { 
-          id: '123456789012345', 
-          name: 'Mock Business Page', 
-          access_token: config?.token || 'mock_access_token_123456', 
-          category: 'Business',
-          instagram_business_account: {
-            id: '987654321098765',
-            username: 'mock_instagram_business',
-            name: 'Mock Instagram Business'
-          }
-        }
-      ];
-      localStorage.setItem('fb_available_pages', JSON.stringify(mockPages));
-      localStorage.setItem('fb_page_id', mockPages[0].id);
-      localStorage.setItem('fb_page_name', mockPages[0].name);
-      localStorage.setItem('fb_access_token', mockPages[0].access_token);
-      
-      if (config?.state === 'instagram') {
-        localStorage.setItem('ig_business_account_id', '987654321098765');
-        localStorage.setItem('instagram_username', 'mock_instagram_business');
-      } else {
-        localStorage.setItem('facebook_username', mockPages[0].name);
-      }
-    }
-
-    setStatus('success');
-    setMessage(`Successfully connected to ${config?.state || 'youtube'} (Mock Mode)! Redirecting...`);
-    setTimeout(() => navigate('/accounts'), 2000);
-  };
 
   useEffect(() => {
     const processAuth = async () => {
@@ -88,60 +37,18 @@ export default function AuthCallback() {
       if (error) {
         setStatus('error');
         setMessage(`Connection failed: ${error}`);
-        setTimeout(() => navigate('/accounts'), 3000);
+        setTimeout(() => navigate('/accounts'), 4000);
         return;
       }
 
       const tokenToUse = accessToken || code;
 
       if (tokenToUse && state) {
-        // Handle mock connection immediately without countdown
+        // Reject mock connection tokens
         if (tokenToUse.startsWith('mock_')) {
-          const connectedAccounts = JSON.parse(localStorage.getItem('connectedAccounts') || '[]');
-          if (!connectedAccounts.includes(state)) {
-            connectedAccounts.push(state);
-            localStorage.setItem('connectedAccounts', JSON.stringify(connectedAccounts));
-          }
-
-          if (state === 'youtube') {
-            localStorage.setItem('youtube_channel_id', 'UC_mock_channel_id_123');
-            localStorage.setItem('youtube_channel_name', 'Mock YouTube Channel');
-            localStorage.setItem('youtube_access_token', tokenToUse);
-            localStorage.setItem('youtube_username', 'mock_youtube_creator');
-            localStorage.setItem('youtube_subscribers', '12500');
-          } else if (state === 'threads') {
-            localStorage.setItem('threads_username', 'mock_threads_creator');
-            localStorage.setItem('threads_access_token', tokenToUse);
-          } else {
-            const mockPages = [
-              { 
-                id: '123456789012345', 
-                name: 'Mock Business Page', 
-                access_token: tokenToUse, 
-                category: 'Business',
-                instagram_business_account: {
-                  id: '987654321098765',
-                  username: 'mock_instagram_business',
-                  name: 'Mock Instagram Business'
-                }
-              }
-            ];
-            localStorage.setItem('fb_available_pages', JSON.stringify(mockPages));
-            localStorage.setItem('fb_page_id', mockPages[0].id);
-            localStorage.setItem('fb_page_name', mockPages[0].name);
-            localStorage.setItem('fb_access_token', mockPages[0].access_token);
-            
-            if (state === 'instagram') {
-              localStorage.setItem('ig_business_account_id', '987654321098765');
-              localStorage.setItem('instagram_username', 'mock_instagram_business');
-            } else {
-              localStorage.setItem('facebook_username', mockPages[0].name);
-            }
-          }
-
-          setStatus('success');
-          setMessage(`Successfully connected to ${state} (Mock Mode)! Redirecting...`);
-          setTimeout(() => navigate('/accounts'), 1500);
+          setStatus('error');
+          setMessage('Mock/Simulated connection tokens are not supported. Please use a real social media profile.');
+          setTimeout(() => navigate('/accounts'), 4000);
           return;
         }
 
@@ -191,66 +98,26 @@ export default function AuthCallback() {
           }
 
           if (!ytSaved) {
+            // Remove from connectedAccounts if fetch failed
+            const updatedConnections = connectedAccounts.filter(id => id !== 'youtube');
+            localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
+            
             setStatus('error');
-            const config = { token: tokenToUse, state };
-            mockConfigRef.current = config;
-            setMockConfig(config);
-
-            let completed = false;
-            for (let i = 5; i > 0; i--) {
-              if (hasConnectedMock.current) {
-                completed = true;
-                break;
-              }
-              setCountdown(i);
-              setMessage(`Real YouTube Connection Failed: ${fetchError}`);
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            if (!completed && !hasConnectedMock.current) {
-              hasConnectedMock.current = true;
-              localStorage.setItem('youtube_channel_id', 'UC_mock_channel_id_123');
-              localStorage.setItem('youtube_channel_name', 'Mock YouTube Channel');
-              localStorage.setItem('youtube_access_token', config.token || 'mock_youtube_access_token_123');
-              localStorage.setItem('youtube_username', 'mock_youtube_creator');
-              localStorage.setItem('youtube_subscribers', '12500');
-
-              setStatus('success');
-              setMessage(`Successfully connected to YouTube (Mock Mode)! Redirecting...`);
-              setTimeout(() => navigate('/accounts'), 2000);
-            }
+            setMessage(`YouTube connection failed: ${fetchError || 'Could not verify channel'}`);
+            setTimeout(() => navigate('/accounts'), 4000);
             return;
           }
         }
 
         // Auto-fetch details if connecting threads
         if (state === 'threads') {
-          // Threads only supports Authorization Code flow, so we must fall back to Mock Mode
+          // Threads requires server-side authentication
+          const updatedConnections = connectedAccounts.filter(id => id !== 'threads');
+          localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
+
           setStatus('error');
-          const config = { token: tokenToUse, state };
-          mockConfigRef.current = config;
-          setMockConfig(config);
-
-          let completed = false;
-          for (let i = 5; i > 0; i--) {
-            if (hasConnectedMock.current) {
-              completed = true;
-              break;
-            }
-            setCountdown(i);
-            setMessage("Real Threads Connection Failed: Client-side App Secret exchange is not supported for security reasons.");
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-
-          if (!completed && !hasConnectedMock.current) {
-            hasConnectedMock.current = true;
-            localStorage.setItem('threads_username', 'mock_threads_creator');
-            localStorage.setItem('threads_access_token', config.token || 'mock_threads_token_123');
-
-            setStatus('success');
-            setMessage("Successfully connected to Threads (Mock Mode)! Redirecting...");
-            setTimeout(() => navigate('/accounts'), 2000);
-          }
+          setMessage("Threads integration requires server-side secret exchange and is coming soon.");
+          setTimeout(() => navigate('/accounts'), 4000);
           return;
         }
 
@@ -305,53 +172,13 @@ export default function AuthCallback() {
           }
 
           if (!pagesSaved) {
+            // Remove from connectedAccounts if fetch failed
+            const updatedConnections = connectedAccounts.filter(id => id !== state);
+            localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
+
             setStatus('error');
-            const config = { token: tokenToUse, state };
-            mockConfigRef.current = config;
-            setMockConfig(config);
-
-            let completed = false;
-            for (let i = 5; i > 0; i--) {
-              if (hasConnectedMock.current) {
-                completed = true;
-                break;
-              }
-              setCountdown(i);
-              setMessage(`Real Page Connection Failed: ${fetchError || 'No active pages found'}`);
-              await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-
-            if (!completed && !hasConnectedMock.current) {
-              hasConnectedMock.current = true;
-              const mockPages = [
-                { 
-                  id: '123456789012345', 
-                  name: 'Mock Business Page', 
-                  access_token: config.token || 'mock_access_token_123456', 
-                  category: 'Business',
-                  instagram_business_account: {
-                    id: '987654321098765',
-                    username: 'mock_instagram_business',
-                    name: 'Mock Instagram Business'
-                  }
-                }
-              ];
-              localStorage.setItem('fb_available_pages', JSON.stringify(mockPages));
-              localStorage.setItem('fb_page_id', mockPages[0].id);
-              localStorage.setItem('fb_page_name', mockPages[0].name);
-              localStorage.setItem('fb_access_token', mockPages[0].access_token);
-              
-              if (config.state === 'instagram') {
-                localStorage.setItem('ig_business_account_id', '987654321098765');
-                localStorage.setItem('instagram_username', 'mock_instagram_business');
-              } else {
-                localStorage.setItem('facebook_username', mockPages[0].name);
-              }
-
-              setStatus('success');
-              setMessage(`Successfully connected to ${config.state} (Mock Mode)! Redirecting...`);
-              setTimeout(() => navigate('/accounts'), 2000);
-            }
+            setMessage(`Real Connection Failed: ${fetchError || 'No active Facebook Pages found'}`);
+            setTimeout(() => navigate('/accounts'), 4000);
             return;
           }
         }
@@ -395,45 +222,6 @@ export default function AuthCallback() {
         )}
         
         <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 1rem' }}>{message}.</p>
-
-        {status === 'error' && countdown !== null && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: '0 0 1.5rem' }}>
-              Connecting in Mock Mode in <span style={{ color: 'var(--accent-blue)', fontWeight: 600 }}>{countdown}</span> seconds...
-            </p>
-            <button
-              onClick={handleConnectMockNow}
-              style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: 'var(--text-primary)',
-                padding: '0.75rem 1.5rem',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'all 0.2s ease',
-                outline: 'none',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                width: '100%'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              Use Mock Mode Now
-            </button>
-          </div>
-        )}
         
       </div>
     </div>
