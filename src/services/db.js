@@ -20,6 +20,9 @@ function dataURLtoBlob(dataurl) {
 }
 
 async function uploadToTmpFiles(blob, fileName) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
+
   try {
     const formData = new FormData();
     formData.append('file', blob, fileName || `upload_${Date.now()}.bin`);
@@ -27,8 +30,11 @@ async function uploadToTmpFiles(blob, fileName) {
 
     const res = await fetch('https://tmpfiles.org/api/v1/upload', {
       method: 'POST',
-      body: formData
+      body: formData,
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
+
     const data = await res.json();
     if (res.ok && data.status === 'success' && data.data?.url) {
       const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
@@ -38,6 +44,7 @@ async function uploadToTmpFiles(blob, fileName) {
       throw new Error(data.error || 'Failed to upload to tmpfiles.org');
     }
   } catch (e) {
+    clearTimeout(timeoutId);
     console.error("Failed to upload to tmpfiles.org fallback:", e);
     throw e;
   }
@@ -92,8 +99,11 @@ export const dbService = {
         return downloadURL;
       });
 
+      const isVideoFile = blob.type?.startsWith('video');
+      const timeoutDuration = isVideoFile ? 300000 : 20000; // 5 mins for video, 20 secs for image/etc.
+
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), 300000)
+        setTimeout(() => reject(new Error("Firebase Storage upload timeout")), timeoutDuration)
       );
 
       const downloadURL = await Promise.race([uploadPromise, timeoutPromise]);
