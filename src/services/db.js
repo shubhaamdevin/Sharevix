@@ -25,11 +25,7 @@ export const dbService = {
   async uploadFile(fileOrBase64, fileName) {
     if (!storage) {
       if (fileOrBase64 instanceof File) {
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(fileOrBase64);
-        });
+        return URL.createObjectURL(fileOrBase64);
       }
       return fileOrBase64;
     }
@@ -62,11 +58,7 @@ export const dbService = {
     } catch (e) {
       console.warn("Firebase Storage upload failed or timed out, using local fallback URL:", e);
       if (fileOrBase64 instanceof File) {
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(fileOrBase64);
-        });
+        return URL.createObjectURL(fileOrBase64);
       }
       return typeof fileOrBase64 === 'string' ? fileOrBase64 : '';
     }
@@ -155,6 +147,18 @@ export const dbService = {
   },
 
   async deletePost(postId) {
+    // Keep local storage fallback in sync by deleting the post there too
+    try {
+      const localPosts = localStorage.getItem('postHistory');
+      if (localPosts) {
+        const parsed = JSON.parse(localPosts);
+        const filtered = parsed.filter(p => String(p.id) !== String(postId));
+        localStorage.setItem('postHistory', JSON.stringify(filtered));
+      }
+    } catch (err) {
+      console.error("Failed to delete post from localStorage:", err);
+    }
+
     const posts = await this.getPosts();
     const targetPost = posts.find(p => String(p.id) === String(postId));
     
@@ -197,9 +201,49 @@ export const dbService = {
       } catch (err) {
         console.error("Failed to parse mock posts:", err);
       }
-      const newPost = { id: Date.now(), ...postData };
+
+      // Deep copy and strip huge Base64 data strings to prevent local storage quota limit crash
+      const cleanedPostData = JSON.parse(JSON.stringify(postData));
+      if (cleanedPostData.media && Array.isArray(cleanedPostData.media)) {
+        cleanedPostData.media = cleanedPostData.media.map(item => {
+          if (item.url && item.url.startsWith('data:')) {
+            const isVideo = item.type && item.type.startsWith('video');
+            return {
+              ...item,
+              url: isVideo 
+                ? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+                : 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800'
+            };
+          }
+          return item;
+        });
+      }
+
+      const newPost = { id: Date.now(), ...cleanedPostData };
       mockPosts.push(newPost);
-      localStorage.setItem('postHistory', JSON.stringify(mockPosts));
+      
+      try {
+        localStorage.setItem('postHistory', JSON.stringify(mockPosts));
+      } catch (quotaError) {
+        console.warn("localStorage quota exceeded on postHistory! Trimming post history to fit.", quotaError);
+        if (mockPosts.length > 5) {
+          mockPosts = mockPosts.slice(-5);
+        } else {
+          mockPosts = [newPost];
+        }
+        try {
+          localStorage.setItem('postHistory', JSON.stringify(mockPosts));
+        } catch (retryError) {
+          console.error("Failed to save post to localStorage even after trimming:", retryError);
+          // If it still fails, try clearing localStorage of old massive files
+          localStorage.removeItem('postHistory');
+          try {
+            localStorage.setItem('postHistory', JSON.stringify([newPost]));
+          } catch (e) {
+            console.error("Failed completely to write to localStorage:", e);
+          }
+        }
+      }
       return newPost;
     };
 
