@@ -1996,9 +1996,96 @@ export default function CreatePost() {
         }
       }
 
-      // Simulated Threads Publishing
+      // Direct Real-time Threads API Publishing
       if (status === 'published' && selectedTargets.includes('threads')) {
-        throw new Error("Threads integration is currently coming soon and simulated posting is disabled.");
+        const token = localStorage.getItem('threads_access_token');
+        const userId = localStorage.getItem('threads_user_id');
+
+        if (!token || !userId) {
+          throw new Error("Threads access credentials are missing. Please connect your Threads account under Accounts page.");
+        }
+
+        try {
+          const threadsContent = getPlatformContent('threads');
+          const postText = `${threadsContent.title ? threadsContent.title + '\n' : ''}${threadsContent.description || ''}`;
+
+          if (!postText.trim() && getPlatformMedia('threads').length === 0) {
+            throw new Error("Threads post content is empty. Please enter some text or add media.");
+          }
+
+          if (postText.length > 500) {
+            throw new Error("Threads post text exceeds the maximum character limit of 500 characters.");
+          }
+
+          const threadsMedia = getPlatformMedia('threads');
+          const threadsUploadedMedia = uploadedPlatformMedia.threads !== undefined ? uploadedPlatformMedia.threads : (uploadedPlatformMedia.universal || []);
+
+          let containerUrl = `https://graph.threads.net/v1.0/${userId}/threads?text=${encodeURIComponent(postText)}&access_token=${token}`;
+          let isVideo = false;
+          let isImage = false;
+
+          if (threadsMedia.length > 0) {
+            const fileUrl = threadsUploadedMedia[0].url;
+            isVideo = threadsUploadedMedia[0].type.startsWith('video');
+            isImage = threadsUploadedMedia[0].type.startsWith('image');
+
+            if (isVideo) {
+              containerUrl += `&media_type=VIDEO&video_url=${encodeURIComponent(fileUrl)}`;
+            } else if (isImage) {
+              containerUrl += `&media_type=IMAGE&image_url=${encodeURIComponent(fileUrl)}`;
+            }
+          } else {
+            containerUrl += `&media_type=TEXT`;
+          }
+
+          // 1. Create Media Container
+          const containerRes = await fetch(containerUrl, { method: 'POST' });
+          const containerData = await containerRes.json();
+          if (!containerRes.ok) {
+            throw containerData.error || new Error(containerData.error?.message || "Failed to create Threads media container.");
+          }
+
+          const containerId = containerData.id;
+
+          // 2. If it has media (especially videos), poll for container processing status
+          if (threadsMedia.length > 0) {
+            let mediaStatus = 'IN_PROGRESS';
+            let retries = 0;
+            const maxRetries = 15; // 15 retries * 4 seconds = 60 seconds
+
+            while (mediaStatus === 'IN_PROGRESS' && retries < maxRetries) {
+              await new Promise(r => setTimeout(r, 4000));
+              const statusRes = await fetch(`https://graph.threads.net/v1.0/${containerId}?fields=status,error_message&access_token=${token}`);
+              const statusData = await statusRes.json();
+              if (!statusRes.ok) {
+                throw statusData.error || new Error(statusData.error?.message || "Failed to check Threads media processing status");
+              }
+              mediaStatus = statusData.status;
+              if (mediaStatus === 'ERROR') {
+                throw new Error(`Threads media processing failed: ${statusData.error_message || 'Unknown error'}`);
+              }
+              retries++;
+            }
+            if (mediaStatus !== 'FINISHED' && mediaStatus !== 'PUBLISHED') {
+              throw new Error("Threads media processing timed out. Please try posting again.");
+            }
+          }
+
+          // 3. Publish Container
+          const publishRes = await fetch(`https://graph.threads.net/v1.0/${userId}/threads_publish?creation_id=${containerId}&access_token=${token}`, { method: 'POST' });
+          const publishData = await publishRes.json();
+          if (!publishRes.ok) {
+            throw publishData.error || new Error(publishData.error?.message || "Failed to publish Threads media container.");
+          }
+
+          console.log("Published successfully to Threads!", publishData);
+          if (publishData.id) {
+            postData.threads_post_id = publishData.id;
+          }
+        } catch (threadsApiErr) {
+          console.error("Threads API error:", threadsApiErr);
+          throw new Error(`Threads API posting failed: ${threadsApiErr.message || threadsApiErr}`);
+        }
       }
 
       // Simulated X (Twitter) Publishing

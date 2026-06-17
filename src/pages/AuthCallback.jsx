@@ -111,14 +111,49 @@ export default function AuthCallback() {
 
         // Auto-fetch details if connecting threads
         if (state === 'threads') {
-          // Threads requires server-side authentication
-          const updatedConnections = connectedAccounts.filter(id => id !== 'threads');
-          localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
+          let threadsSaved = false;
+          let fetchError = null;
 
-          setStatus('error');
-          setMessage("Threads integration requires server-side secret exchange and is coming soon.");
-          setTimeout(() => navigate('/accounts'), 4000);
-          return;
+          try {
+            const redirectUri = `${window.location.origin}/auth/callback`;
+            // Call our serverless Vercel function to exchange code for access_token safely
+            const exchangeRes = await fetch(`/api/threads-token?code=${tokenToUse}&redirect_uri=${encodeURIComponent(redirectUri)}`);
+            const exchangeData = await exchangeRes.json();
+            
+            if (!exchangeRes.ok) {
+              throw new Error(exchangeData.error || 'Failed to exchange Threads authorization code');
+            }
+
+            const accessToken = exchangeData.access_token;
+            
+            // Query Threads /me profile API
+            const profileRes = await fetch(`https://graph.threads.net/v1.0/me?fields=id,username,name&access_token=${accessToken}`);
+            const profileData = await profileRes.json();
+            
+            if (profileRes.ok && profileData.username) {
+              localStorage.setItem('threads_username', profileData.username);
+              localStorage.setItem('threads_access_token', accessToken);
+              localStorage.setItem('threads_user_id', profileData.id);
+              threadsSaved = true;
+            } else if (!profileRes.ok) {
+              throw new Error(profileData.error?.message || 'Failed to fetch Threads profile details');
+            } else {
+              throw new Error('Threads profile details are incomplete.');
+            }
+          } catch (err) {
+            fetchError = err.message;
+            console.error("Threads connection failed:", err);
+          }
+
+          if (!threadsSaved) {
+            const updatedConnections = connectedAccounts.filter(id => id !== 'threads');
+            localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
+            
+            setStatus('error');
+            setMessage(`Threads Connection Failed: ${fetchError || 'Unable to verify profile'}`);
+            setTimeout(() => navigate('/accounts'), 4000);
+            return;
+          }
         }
 
         // Auto-fetch pages if connecting facebook or instagram

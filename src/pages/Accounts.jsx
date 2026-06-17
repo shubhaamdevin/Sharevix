@@ -17,7 +17,7 @@ const platformDefinitions = [
   { id: 'facebook', name: 'Facebook', icon: FacebookIcon, color: '#1877F2', comingSoon: false },
   { id: 'instagram', name: 'Instagram', icon: InstagramIcon, color: '#E1306C', comingSoon: false },
   { id: 'youtube', name: 'YouTube', icon: YoutubeIcon, color: '#FF0000', comingSoon: false },
-  { id: 'threads', name: 'Threads', icon: ThreadsIcon, color: '#ffffff', comingSoon: true },
+  { id: 'threads', name: 'Threads', icon: ThreadsIcon, color: '#ffffff', comingSoon: false },
   { id: 'x', name: 'X (Twitter)', icon: TwitterIcon, color: '#ffffff', comingSoon: true }
 ];
 
