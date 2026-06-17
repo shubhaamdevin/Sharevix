@@ -1737,7 +1737,7 @@ export default function CreatePost() {
               if (file.type.startsWith('video')) {
                 formData.append('source', fileBlob);
                 formData.append('description', postText);
-                res = await fetch(`https://graph.facebook.com/v18.0/${pageId}/videos`, {
+                res = await fetch(`https://graph-video.facebook.com/v18.0/${pageId}/videos`, {
                   method: 'POST',
                   body: formData
                 });
