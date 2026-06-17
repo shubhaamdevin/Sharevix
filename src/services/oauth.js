@@ -9,10 +9,7 @@ export const generateOAuthUrl = (platformId) => {
       return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${import.meta.env.VITE_FACEBOOK_CLIENT_ID}&redirect_uri=${redirectUri}&state=${state}&response_type=token&scope=pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_business_basic,instagram_business_content_publish`;
       
     case 'threads':
-      const rawEnvId = String(import.meta.env.VITE_THREADS_CLIENT_ID).trim();
-      const threadsClientId = (rawEnvId && rawEnvId !== 'undefined' && rawEnvId !== 'null' && rawEnvId !== '2191562718270180' && rawEnvId !== '')
-        ? rawEnvId
-        : '2375353406286370';
+      const threadsClientId = '2375353406286370';
       return `https://threads.net/oauth/authorize?client_id=${threadsClientId}&redirect_uri=${redirectUri}&scope=threads_basic,threads_content_publish&response_type=code&state=${state}`;
 
     case 'x':
