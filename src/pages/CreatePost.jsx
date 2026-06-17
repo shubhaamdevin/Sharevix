@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ImagePlus, Plus, Check, Video, Loader2, Sparkles, Send, Smartphone, Heart, MessageCircle, Share2, Repeat2, Bookmark, Globe, Film, HelpCircle, AlignLeft, CheckCircle2, AlertCircle, X, Hash, CalendarClock, Save, Clock, ChevronLeft, ChevronRight, Calendar, ThumbsUp, ThumbsDown, Volume2, VolumeX, MoreVertical, Play } from 'lucide-react';
+import { ImagePlus, Plus, Check, Video, Loader2, Sparkles, Send, Smartphone, Heart, MessageCircle, Share2, Repeat2, Bookmark, Globe, Film, HelpCircle, AlignLeft, CheckCircle2, AlertCircle, X, Hash, CalendarClock, Save, Clock, ChevronLeft, ChevronRight, ChevronDown, Calendar, ThumbsUp, ThumbsDown, Volume2, VolumeX, MoreVertical, Play, Lock, EyeOff } from 'lucide-react';
 import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, PinterestIcon, WhatsappIcon, TelegramIcon, SnapchatIcon, RedditIcon, ThreadsIcon } from '../components/Icons';
 import { db } from '../firebase';
 import { dbService } from '../services/db';
@@ -2694,36 +2694,154 @@ export default function CreatePost() {
 
           <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             
-            {/* Visibility Options */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-                <Globe size={16} color="var(--accent-blue)" /> Post Visibility
-              </label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                {['public', 'private', 'unlisted'].map((vis) => (
+            {/* Visibility Dropdown */}
+            {(() => {
+              const [visDropOpen, setVisDropOpen] = useState(false);
+              const visRef = useRef(null);
+
+              // Close on outside click
+              useEffect(() => {
+                const handler = (e) => { if (visRef.current && !visRef.current.contains(e.target)) setVisDropOpen(false); };
+                document.addEventListener('mousedown', handler);
+                return () => document.removeEventListener('mousedown', handler);
+              }, []);
+
+              const visOptions = [
+                { value: 'public',   Icon: Globe,   label: 'Public',   desc: 'Everyone can see this post',          color: '#00D2FF' },
+                { value: 'private',  Icon: Lock,    label: 'Private',  desc: 'Only you can see this post',          color: '#FF6B6B' },
+                { value: 'unlisted', Icon: EyeOff,  label: 'Unlisted', desc: 'Anyone with the link can see it',     color: '#A78BFA' },
+              ];
+              const selected = visOptions.find(v => v.value === visibility) || visOptions[0];
+              const SelIcon = selected.Icon;
+
+              return (
+                <div ref={visRef} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative' }}>
+                  <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+                    <Globe size={16} color="var(--accent-blue)" /> Post Visibility
+                  </label>
+
+                  {/* Trigger Button */}
                   <button
-                    key={vis}
                     type="button"
-                    onClick={() => setVisibility(vis)}
+                    onClick={() => setVisDropOpen(o => !o)}
                     style={{
-                      flex: 1,
-                      padding: '0.65rem 0.75rem',
-                      borderRadius: '10px',
-                      background: visibility === vis ? 'rgba(0, 210, 255, 0.08)' : 'rgba(255,255,255,0.01)',
-                      border: visibility === vis ? '1px solid var(--accent-blue)' : '1px solid var(--panel-border)',
-                      color: visibility === vis ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.75rem 1rem',
+                      borderRadius: '14px',
+                      background: `linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)`,
+                      border: `1px solid ${visDropOpen ? selected.color + '70' : 'var(--panel-border)'}`,
                       cursor: 'pointer',
-                      fontWeight: 600,
-                      fontSize: '0.8rem',
-                      textTransform: 'capitalize',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.25s ease',
+                      boxShadow: visDropOpen ? `0 0 20px ${selected.color}18` : 'none',
                     }}
                   >
-                    {vis}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: '10px',
+                        background: `${selected.color}18`,
+                        border: `1px solid ${selected.color}40`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <SelIcon size={15} color={selected.color} />
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'capitalize', lineHeight: 1.2 }}>{selected.label}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.3, marginTop: 2 }}>{selected.desc}</div>
+                      </div>
+                    </div>
+                    <motion.div
+                      animate={{ rotate: visDropOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      style={{ color: 'var(--text-secondary)', flexShrink: 0 }}
+                    >
+                      <ChevronDown size={16} />
+                    </motion.div>
                   </button>
-                ))}
-              </div>
-            </div>
+
+                  {/* Dropdown Panel */}
+                  <AnimatePresence>
+                    {visDropOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 6px)',
+                          left: 0,
+                          right: 0,
+                          zIndex: 9999,
+                          background: 'rgba(14, 16, 26, 0.97)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '16px',
+                          overflow: 'hidden',
+                          backdropFilter: 'blur(20px)',
+                          boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04)',
+                          padding: '6px'
+                        }}
+                      >
+                        {visOptions.map((opt, i) => {
+                          const OptIcon = opt.Icon;
+                          const isActive = visibility === opt.value;
+                          return (
+                            <motion.button
+                              key={opt.value}
+                              type="button"
+                              whileHover={{ background: 'rgba(255,255,255,0.05)' }}
+                              onClick={() => { setVisibility(opt.value); setVisDropOpen(false); }}
+                              style={{
+                                width: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '0.65rem 0.85rem',
+                                borderRadius: '11px',
+                                background: isActive ? `${opt.color}12` : 'transparent',
+                                border: isActive ? `1px solid ${opt.color}35` : '1px solid transparent',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                textAlign: 'left',
+                                marginBottom: i < visOptions.length - 1 ? 2 : 0
+                              }}
+                            >
+                              <div style={{
+                                width: 30, height: 30, borderRadius: '9px',
+                                background: `${opt.color}18`,
+                                border: `1px solid ${opt.color}35`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0
+                              }}>
+                                <OptIcon size={14} color={opt.color} />
+                              </div>
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: isActive ? opt.color : 'var(--text-primary)', lineHeight: 1.2 }}>{opt.label}</div>
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.3, marginTop: 2 }}>{opt.desc}</div>
+                              </div>
+                              {isActive && (
+                                <div style={{
+                                  width: 18, height: 18, borderRadius: '50%',
+                                  background: opt.color,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  flexShrink: 0
+                                }}>
+                                  <Check size={11} color="#000" strokeWidth={3} />
+                                </div>
+                              )}
+                            </motion.button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })()}
+
             
             {/* Publishing Schedule Toggle */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
