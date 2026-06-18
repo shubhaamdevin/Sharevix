@@ -390,6 +390,7 @@ export default function Accounts() {
           {availableAccounts.map(acc => {
             const Icon = acc.icon;
             const isHovered = hoveredCardId === acc.id;
+            const isWhiteBrand = acc.color.toLowerCase() === '#ffffff' || acc.color.toLowerCase() === '#fff';
             return (
               <div 
                 key={acc.id} 
@@ -398,7 +399,7 @@ export default function Accounts() {
                 onMouseLeave={() => setHoveredCardId(null)}
                 style={{ 
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
-                  padding: '1.25rem', 
+                  padding: '1.5rem', 
                   background: isHovered ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.02)', 
                   border: isHovered ? `1px solid ${acc.color}40` : '1px solid rgba(255,255,255,0.05)',
                   boxShadow: isHovered ? `0 0 20px ${acc.color}15` : 'none',
@@ -430,7 +431,7 @@ export default function Accounts() {
                     style={{ 
                       background: isHovered ? acc.color : 'var(--panel-border)', 
                       border: '1px solid transparent', 
-                      color: isHovered ? '#ffffff' : 'var(--text-secondary)', 
+                      color: isHovered ? (isWhiteBrand ? '#000000' : '#ffffff') : 'var(--text-secondary)', 
                       padding: '0.5rem 1.25rem', 
                       borderRadius: '20px', 
                       cursor: 'pointer', 
