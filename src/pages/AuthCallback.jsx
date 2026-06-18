@@ -165,6 +165,67 @@ export default function AuthCallback() {
           }
         }
 
+        // Auto-fetch details if connecting X (Twitter)
+        if (state === 'x') {
+          let xSaved = false;
+          let fetchError = null;
+
+          try {
+            const redirectUri = `${window.location.origin}/auth/callback`;
+            setMessage('Connecting your X account...');
+
+            // Exchange authorization code for access token via server-side proxy
+            const exchangeRes = await fetch(`/api/x-token?code=${tokenToUse}&redirect_uri=${encodeURIComponent(redirectUri)}`);
+            const exchangeData = await exchangeRes.json();
+
+            if (!exchangeRes.ok) {
+              throw new Error(exchangeData.error || 'Failed to exchange X authorization code');
+            }
+
+            const xAccessToken = exchangeData.access_token;
+            const xRefreshToken = exchangeData.refresh_token;
+
+            setMessage('Fetching your X profile...');
+
+            // Fetch X user profile via proxy
+            const profileRes = await fetch('/api/x-proxy', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                path: '/users/me',
+                targetMethod: 'GET',
+                params: { 'user.fields': 'id,name,username,profile_image_url,public_metrics' },
+                access_token: xAccessToken
+              })
+            });
+            const profileData = await profileRes.json();
+
+            if (profileRes.ok && profileData.data && profileData.data.username) {
+              localStorage.setItem('x_username', profileData.data.username);
+              localStorage.setItem('x_user_id', profileData.data.id);
+              localStorage.setItem('x_access_token', xAccessToken);
+              if (xRefreshToken) {
+                localStorage.setItem('x_refresh_token', xRefreshToken);
+              }
+              xSaved = true;
+            } else {
+              throw new Error(profileData.errors?.[0]?.message || 'Failed to fetch X profile details');
+            }
+          } catch (err) {
+            fetchError = err.message;
+            console.error('X connection failed:', err);
+          }
+
+          if (!xSaved) {
+            const updatedConnections = connectedAccounts.filter(id => id !== 'x');
+            localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
+            setStatus('error');
+            setMessage(`X Connection Failed: ${fetchError || 'Unable to verify profile'}`);
+            setTimeout(() => navigate('/accounts'), 4000);
+            return;
+          }
+        }
+
         // Auto-fetch pages if connecting facebook or instagram
         if (state === 'facebook' || state === 'instagram') {
           let pagesSaved = false;

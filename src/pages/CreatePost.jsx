@@ -1715,7 +1715,7 @@ export default function CreatePost() {
     setIsPublishing(true);
     
     try {
-      // X and Threads bypass the unsupported error block and publish in simulation mode
+      // Publish to connected platforms via their respective APIs
       let publishDate = new Date().toISOString();
       if (status === 'scheduled' && scheduleDate && scheduleTime) {
         publishDate = new Date(`${scheduleDate}T${scheduleTime}`).toISOString();
@@ -2238,9 +2238,68 @@ export default function CreatePost() {
         }
       }
 
-      // Simulated X (Twitter) Publishing
+      // Direct Real-time X (Twitter) API Publishing
       if (status === 'published' && selectedTargets.includes('x')) {
-        throw new Error("X (Twitter) integration is currently coming soon and simulated posting is disabled.");
+        const xToken = localStorage.getItem('x_access_token');
+        if (!xToken) {
+          throw new Error("X Access Token is missing. Please reconnect your X account on the Accounts page.");
+        }
+
+        try {
+          const xContent = getPlatformContent('x');
+          let tweetText = `${xContent.title ? xContent.title + '\n' : ''}${xContent.description || ''}`.trim();
+
+          if (!tweetText && finalContent.trim()) {
+            tweetText = finalContent.trim();
+          }
+
+          // Attach media URLs to the tweet text (X v2 media upload requires separate chunked upload API)
+          const xMedia = getPlatformMedia('x');
+          if (xMedia && xMedia.length > 0) {
+            const uploadedXMedia = uploadedPlatformMedia['x'] || uploadedPlatformMedia['universal'] || [];
+            const mediaLinks = uploadedXMedia.filter(m => m.url && m.url.startsWith('http')).map(m => m.url);
+            if (mediaLinks.length > 0) {
+              tweetText = tweetText ? `${tweetText}\n\n${mediaLinks.join('\n')}` : mediaLinks.join('\n');
+            }
+          }
+
+          if (!tweetText) {
+            throw new Error("Tweet text is required. Please add some text content for your X post.");
+          }
+
+          // Truncate to X's 280 character limit
+          if (tweetText.length > 280) {
+            tweetText = tweetText.substring(0, 277) + '...';
+          }
+
+          // Post tweet via proxy
+          const tweetRes = await fetch('/api/x-proxy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              path: '/tweets',
+              targetMethod: 'POST',
+              access_token: xToken,
+              body: {
+                text: tweetText
+              }
+            })
+          });
+          const tweetData = await tweetRes.json();
+
+          if (!tweetRes.ok) {
+            const errMsg = tweetData.errors?.[0]?.message || tweetData.detail || tweetData.error || 'Failed to post tweet';
+            throw new Error(errMsg);
+          }
+
+          console.log("Published successfully to X (Twitter)!", tweetData);
+          if (tweetData.data && tweetData.data.id) {
+            postData.x_tweet_id = tweetData.data.id;
+          }
+        } catch (xApiErr) {
+          console.error("X API error:", xApiErr);
+          throw new Error(`X (Twitter) posting failed: ${xApiErr.message || xApiErr}`);
+        }
       }
 
       if (editPost && editPost.id) {

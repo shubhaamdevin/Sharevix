@@ -18,7 +18,7 @@ const platformDefinitions = [
   { id: 'instagram', name: 'Instagram', icon: InstagramIcon, color: '#E1306C', comingSoon: false },
   { id: 'youtube', name: 'YouTube', icon: YoutubeIcon, color: '#FF0000', comingSoon: false },
   { id: 'threads', name: 'Threads', icon: ThreadsIcon, color: '#ffffff', comingSoon: false },
-  { id: 'x', name: 'X (Twitter)', icon: TwitterIcon, color: '#ffffff', comingSoon: true }
+  { id: 'x', name: 'X (Twitter)', icon: TwitterIcon, color: '#ffffff', comingSoon: false }
 ];
 
 export default function Accounts() {
@@ -143,8 +143,13 @@ export default function Accounts() {
       changed = true;
     }
 
-    // Always exclude X from active connections for now as it is coming soon
-    if (newConnections.includes('x')) {
+    // Check X (Twitter)
+    const xToken = localStorage.getItem('x_access_token');
+    if (xToken && xToken.startsWith('mock_')) {
+      localStorage.removeItem('x_username');
+      localStorage.removeItem('x_access_token');
+      localStorage.removeItem('x_refresh_token');
+      localStorage.removeItem('x_user_id');
       newConnections = newConnections.filter(id => id !== 'x');
       changed = true;
     }
@@ -205,6 +210,13 @@ export default function Accounts() {
     if (disconnectTarget.id === 'threads') {
       localStorage.removeItem('threads_username');
       localStorage.removeItem('threads_access_token');
+      localStorage.removeItem('threads_user_id');
+    }
+    if (disconnectTarget.id === 'x') {
+      localStorage.removeItem('x_username');
+      localStorage.removeItem('x_access_token');
+      localStorage.removeItem('x_refresh_token');
+      localStorage.removeItem('x_user_id');
     }
 
     window.dispatchEvent(new CustomEvent('show-notification', { 
@@ -264,6 +276,7 @@ export default function Accounts() {
                           {acc.id === 'instagram' && localStorage.getItem('instagram_username') ? `(@${localStorage.getItem('instagram_username')})` : ''}
                           {acc.id === 'youtube' && localStorage.getItem('youtube_channel_name') ? `(${localStorage.getItem('youtube_channel_name')})` : ''}
                           {acc.id === 'threads' && localStorage.getItem('threads_username') ? `(@${localStorage.getItem('threads_username')})` : ''}
+                          {acc.id === 'x' && localStorage.getItem('x_username') ? `(@${localStorage.getItem('x_username')})` : ''}
                         </div>
                         {/* Token expiry badge */}
                         {isExpiringSoon && (
