@@ -6,14 +6,14 @@ export const generateOAuthUrl = (platformId) => {
     case 'facebook':
       return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${import.meta.env.VITE_FACEBOOK_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&response_type=token&scope=pages_manage_posts,pages_read_engagement,pages_show_list`;
     case 'instagram': // Instagram uses Facebook Graph API for business accounts
-      return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${import.meta.env.VITE_FACEBOOK_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&response_type=token&scope=pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_business_basic,instagram_business_content_publish`;
+        return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${import.meta.env.VITE_FACEBOOK_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&response_type=token&scope=pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish`;
       
     case 'threads':
       const threadsClientId = import.meta.env.VITE_THREADS_CLIENT_ID || '1326065365671425';
       return `https://threads.net/oauth/authorize?client_id=${threadsClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=threads_basic,threads_content_publish,threads_manage_insights&response_type=code&state=${state}`;
 
     case 'x':
-      return `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${import.meta.env.VITE_X_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=tweet.read%20tweet.write%20users.read&state=${state}&code_challenge=E9Melhoa2OwvFrGMTJguCH5F3dHwGFi1GYrUhai5uqM&code_challenge_method=S256`;
+      return `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${import.meta.env.VITE_X_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=tweet.read%20tweet.write%20users.read%20offline.access&state=${state}&code_challenge=E9Melhoa2OwvFrGMTJguCH5F3dHwGFi1GYrUhai5uqM&code_challenge_method=S256`;
       
     case 'linkedin':
       return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${import.meta.env.VITE_LINKEDIN_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&scope=w_member_social`;
