@@ -254,9 +254,10 @@ export default function AuthCallback() {
 
             // Step 2: Fetch pages using the (long-lived) token
             setMessage('Fetching your Facebook Pages...');
-            const fields = 'name,access_token,category,instagram_business_account';
+            const fields = 'name,access_token,category,instagram_business_account{id,username,name}';
             const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=${fields}&access_token=${longLivedToken}`);
             const data = await res.json();
+            console.log('Facebook /me/accounts response:', JSON.stringify(data));
             if (res.ok && data.data && data.data.length > 0) {
               const pages = data.data.map(p => ({
                 id: p.id,
@@ -291,7 +292,7 @@ export default function AuthCallback() {
               fetchError = data.error?.message || 'Failed to fetch Facebook pages';
               console.error('Facebook API error:', data);
             } else if (data.data && data.data.length === 0) {
-              fetchError = 'No Facebook Pages found on this account. Make sure you have created a Facebook Page';
+              fetchError = 'No Facebook Pages found. Make sure: (1) You have a Facebook Page with admin access, (2) Your Facebook App is in Live mode or you are added as a Tester in the App, (3) You granted all page permissions during login.';
             }
           } catch (err) {
             fetchError = err.message;
