@@ -57,7 +57,7 @@ export default function TotalPosts() {
 
     const updatedComments = [...currentComments, commentObj];
 
-    // Update state
+    // Update local React state
     setPosts(prev => prev.map(p => {
       if (p.id === postId) {
         return { ...p, commentsList: updatedComments };
@@ -67,6 +67,48 @@ export default function TotalPosts() {
 
     // Update DB (both Firestore and LocalStorage fallback)
     await dbService.updatePost(postId, { commentsList: updatedComments });
+
+    // 1. Post to Facebook real Page API if fb_post_id exists
+    if (targetPost.fb_post_id) {
+      const token = localStorage.getItem('fb_access_token');
+      if (token && !token.startsWith('mock_')) {
+        try {
+          const res = await fetch(`https://graph.facebook.com/v18.0/${targetPost.fb_post_id}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: text,
+              access_token: token
+            })
+          });
+          const resData = await res.json();
+          console.log("Comment posted to real Facebook Page post successfully:", resData);
+        } catch (err) {
+          console.error("Failed to post comment to Facebook API:", err);
+        }
+      }
+    }
+
+    // 2. Post to Instagram real Business API if ig_post_id exists
+    if (targetPost.ig_post_id) {
+      const token = localStorage.getItem('fb_access_token');
+      if (token && !token.startsWith('mock_')) {
+        try {
+          const res = await fetch(`https://graph.facebook.com/v18.0/${targetPost.ig_post_id}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: text,
+              access_token: token
+            })
+          });
+          const resData = await res.json();
+          console.log("Comment posted to real Instagram post successfully:", resData);
+        } catch (err) {
+          console.error("Failed to post comment to Instagram API:", err);
+        }
+      }
+    }
   };
 
   const handleLikePost = async (postId) => {
@@ -83,6 +125,25 @@ export default function TotalPosts() {
     }));
 
     await dbService.updatePost(postId, { likes: newLikes });
+
+    // Try posting a like reaction to Facebook Page API if fb_post_id exists
+    if (targetPost.fb_post_id) {
+      const token = localStorage.getItem('fb_access_token');
+      if (token && !token.startsWith('mock_')) {
+        try {
+          await fetch(`https://graph.facebook.com/v18.0/${targetPost.fb_post_id}/reactions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'LIKE',
+              access_token: token
+            })
+          });
+        } catch (err) {
+          console.error("Failed to post reaction to Facebook API:", err);
+        }
+      }
+    }
   };
 
   const handleFollowerPost = async (postId) => {
@@ -135,11 +196,94 @@ export default function TotalPosts() {
   const [deleteTargetPost, setDeleteTargetPost] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
+  const enrichPostsWithRealStats = async (fetchedPosts) => {
+    const token = localStorage.getItem('fb_access_token');
+    if (!token || token.startsWith('mock_')) return;
+
+    try {
+      const enriched = await Promise.all(fetchedPosts.map(async (post) => {
+        if (post.status !== 'published') return post;
+
+        let realLikes = post.likes;
+        let realCommentsList = post.commentsList;
+        let hasRealData = false;
+
+        // 1. Fetch Facebook Real Stats
+        if (post.fb_post_id) {
+          try {
+            const res = await fetch(`https://graph.facebook.com/v18.0/${post.fb_post_id}?fields=reactions.summary(true),comments{id,from,message,created_time}&access_token=${token}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.reactions?.summary?.total_count !== undefined) {
+                realLikes = data.reactions.summary.total_count;
+                hasRealData = true;
+              }
+              if (data.comments?.data) {
+                realCommentsList = data.comments.data.map(c => ({
+                  id: c.id,
+                  author: c.from?.name || "User",
+                  text: c.message,
+                  time: new Date(c.created_time).toLocaleString(),
+                  likes: 0
+                }));
+                hasRealData = true;
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch Facebook real stats:", err);
+          }
+        }
+
+        // 2. Fetch Instagram Real Stats
+        if (post.ig_post_id) {
+          try {
+            const res = await fetch(`https://graph.facebook.com/v18.0/${post.ig_post_id}?fields=like_count,comments{id,username,text,timestamp}&access_token=${token}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.like_count !== undefined) {
+                realLikes = data.like_count;
+                hasRealData = true;
+              }
+              if (data.comments?.data) {
+                realCommentsList = data.comments.data.map(c => ({
+                  id: c.id,
+                  author: c.username || "User",
+                  text: c.text,
+                  time: new Date(c.timestamp).toLocaleString(),
+                  likes: 0
+                }));
+                hasRealData = true;
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch Instagram real stats:", err);
+          }
+        }
+
+        if (hasRealData) {
+          return {
+            ...post,
+            likes: realLikes,
+            commentsList: realCommentsList
+          };
+        }
+        return post;
+      }));
+
+      // Update state only if we have active posts and no state transitions occurred in between
+      setPosts(enriched);
+    } catch (error) {
+      console.error("Error in enrichPostsWithRealStats:", error);
+    }
+  };
+
   const fetchPosts = async () => {
     setLoading(true);
     try {
       const data = await dbService.getPosts();
-      setPosts(data.sort((a, b) => new Date(b.date) - new Date(a.date)));
+      const sorted = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setPosts(sorted);
+      await enrichPostsWithRealStats(sorted);
     } catch (err) {
       console.error("Failed to fetch total posts:", err);
     } finally {
