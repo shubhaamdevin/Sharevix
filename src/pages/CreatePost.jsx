@@ -292,7 +292,7 @@ function PremiumDatePicker({ value, onChange }) {
   };
 
   return (
-    <div ref={datePickerRef} style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <div ref={datePickerRef} style={{ position: 'relative', display: 'flex', flexDirection: 'column', zIndex: isOpen ? 999 : 1 }}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -320,23 +320,23 @@ function PremiumDatePicker({ value, onChange }) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: 10 }}
             transitionEnd={{ overflow: 'visible' }}
             style={{
               position: 'absolute',
-              bottom: '100%',
+              top: '100%',
               left: 0,
-              marginBottom: '0.5rem',
+              marginTop: '0.5rem',
               background: 'var(--panel-bg)',
               backdropFilter: 'blur(25px)',
               border: '1px solid var(--panel-border)',
               borderRadius: '16px',
               padding: '1rem',
               width: '280px',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-              zIndex: 99999
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              zIndex: 100000
             }}
           >
             {/* Month Header */}
@@ -456,7 +456,7 @@ function PremiumTimePicker({ value, onChange, isToday }) {
   const activeOption = timeOptions.find(o => o.value === value);
 
   return (
-    <div ref={timePickerRef} style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <div ref={timePickerRef} style={{ position: 'relative', display: 'flex', flexDirection: 'column', zIndex: isOpen ? 999 : 1 }}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -484,14 +484,14 @@ function PremiumTimePicker({ value, onChange, isToday }) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: 10 }}
             style={{
               position: 'absolute',
-              bottom: '100%',
+              top: '100%',
               left: 0,
-              marginBottom: '0.5rem',
+              marginTop: '0.5rem',
               background: 'rgba(18, 18, 18, 0.98)',
               backdropFilter: 'blur(25px)',
               border: '1px solid var(--panel-border)',
@@ -500,8 +500,8 @@ function PremiumTimePicker({ value, onChange, isToday }) {
               width: '200px',
               maxHeight: '200px',
               overflowY: 'auto',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
-              zIndex: 99999,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              zIndex: 100000,
               display: 'flex',
               flexDirection: 'column',
               gap: '2px'
