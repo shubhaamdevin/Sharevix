@@ -78,8 +78,17 @@ export default function Drafts() {
       </div>
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
-          <div className="animate-spin" style={{ fontSize: '2rem' }}>⏳</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }} className="animate-pulse">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="glass-panel" style={{ padding: '1.5rem', height: '200px', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--panel-border)', background: 'rgba(255,255,255,0.02)' }}>
+              <div style={{ width: '30%', height: '14px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}></div>
+              <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 'auto' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }}></div>
+                <div style={{ width: '80px', height: '36px', borderRadius: '8px', background: 'rgba(255,255,255,0.08)' }}></div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : drafts.length === 0 ? (
         <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>

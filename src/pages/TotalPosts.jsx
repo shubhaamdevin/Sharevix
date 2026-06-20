@@ -312,8 +312,18 @@ export default function TotalPosts() {
 
       {/* Posts List Grid */}
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
-          <div className="animate-spin" style={{ fontSize: '2rem' }}>⏳</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-pulse">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <div key={idx} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', border: '1px solid var(--panel-border)', background: 'rgba(255,255,255,0.02)' }}>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '12px', background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}></div>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ width: '80%', height: '14px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}></div>
+                  <div style={{ width: '50%', height: '10px', borderRadius: '4px', background: 'rgba(255,255,255,0.04)' }}></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : filteredPosts.length === 0 ? (
         <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>

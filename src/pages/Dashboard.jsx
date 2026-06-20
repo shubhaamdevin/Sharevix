@@ -322,7 +322,40 @@ export default function Dashboard() {
       </div>
 
       {loading ? (
-        <InlinePremiumLoader message="Syncing Campaign Data Stream..." />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="animate-pulse">
+          {/* Metrics Grid Skeleton */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="metric-card" style={{ height: '140px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--panel-border)', borderRadius: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '1.5rem', gap: '0.75rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,255,255,0.08)' }}></div>
+                <div style={{ width: '60%', height: '16px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}></div>
+                <div style={{ width: '40%', height: '12px', borderRadius: '4px', background: 'rgba(255,255,255,0.04)' }}></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Chart & Activity Grid Skeleton */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1.5rem', minHeight: '350px' }}>
+            <div className="glass-panel" style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ width: '30%', height: '20px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}></div>
+              <div style={{ flex: 1, borderRadius: '12px', background: 'rgba(255,255,255,0.03)' }}></div>
+            </div>
+            <div className="glass-panel" style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ width: '50%', height: '20px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}></div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }}></div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ width: '70%', height: '12px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)' }}></div>
+                      <div style={{ width: '40%', height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.04)' }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           {/* Metrics Grid */}
