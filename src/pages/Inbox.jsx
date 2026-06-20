@@ -86,7 +86,8 @@ export default function Inbox() {
             lastMessage: msgs[msgs.length - 1]?.text || 'No messages',
             time: new Date(conv.updated_time).toLocaleDateString(),
             unread: false,
-            messages: msgs
+            messages: msgs,
+            psid: conv.senders?.data?.[0]?.id
           };
         });
         
@@ -115,12 +116,16 @@ export default function Inbox() {
     if (isRealSync && !String(selectedId).startsWith('demo_')) {
       // Send real message via Facebook API
       try {
-        const res = await fetch(`https://graph.facebook.com/v18.0/${selectedId}/messages`, {
+        const res = await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${fbToken}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: replyText,
-            access_token: fbToken
+            recipient: {
+              id: currentChat.psid
+            },
+            message: {
+              text: replyText
+            }
           })
         });
         if (res.ok) {
