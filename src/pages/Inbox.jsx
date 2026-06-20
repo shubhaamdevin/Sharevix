@@ -78,12 +78,13 @@ export default function Inbox() {
             id: m.id,
             sender: m.from?.id === fbPageId ? 'me' : 'them',
             text: m.message,
-            time: new Date(m.created_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            time: new Date(m.created_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: new Date(m.created_time).getTime()
           })).reverse();
 
-          // Assume FB users are online if updated recently (e.g. within 30 minutes)
-          const lastUpdated = new Date(conv.updated_time).getTime();
-          const isOnline = (Date.now() - lastUpdated) < 30 * 60 * 1000;
+          // Calculate "Active Now" realistically: if the last message was from the user ('them') and within the last 5 minutes
+          const lastMsg = msgs[msgs.length - 1];
+          const isOnline = lastMsg && lastMsg.sender === 'them' && (Date.now() - lastMsg.timestamp) < 5 * 60 * 1000;
 
           return {
             id: conv.id,
@@ -95,7 +96,7 @@ export default function Inbox() {
             unread: false,
             messages: msgs,
             psid: conv.senders?.data?.[0]?.id,
-            isOnline: isOnline
+            isOnline: !!isOnline
           };
         });
         
