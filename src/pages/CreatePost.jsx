@@ -1506,6 +1506,7 @@ export default function CreatePost() {
   const [showHashtags, setShowHashtags] = useState(false);
   const [hashtagSearchTopic, setHashtagSearchTopic] = useState('');
   const hashtagsRef = useRef(null);
+  const [fbCrosspostIg, setFbCrosspostIg] = useState(() => localStorage.getItem('fb_crosspost_ig') !== 'false');
 
   const getIndividualHashtags = () => {
     if (!hashtagSearchTopic || hashtagSearchTopic.trim() === '') {
@@ -1910,6 +1911,79 @@ export default function CreatePost() {
           console.log("Published successfully to Facebook Page API!", resData);
           if (resData.id) {
             postData.fb_post_id = resData.id;
+          }
+
+          // Auto-crosspost to Instagram if enabled and media exists
+          if (fbCrosspostIg && !selectedTargets.includes('instagram')) {
+            console.log("Auto-crosspost to Instagram is enabled. Attempting to resolve Instagram business account...");
+            let igBusinessAccountId = localStorage.getItem('ig_business_account_id');
+            if (!igBusinessAccountId) {
+              try {
+                const pageRes = await fetch(`https://graph.facebook.com/v18.0/${pageId}?fields=instagram_business_account&access_token=${token}`);
+                const pageData = await pageRes.json();
+                if (pageRes.ok && pageData.instagram_business_account) {
+                  igBusinessAccountId = pageData.instagram_business_account.id;
+                  localStorage.setItem('ig_business_account_id', igBusinessAccountId);
+                }
+              } catch (igErr) {
+                console.warn("Failed to auto-resolve Instagram account during crosspost:", igErr);
+              }
+            }
+
+            if (igBusinessAccountId && fbUploadedMedia && fbUploadedMedia.length > 0) {
+              console.log("Starting Instagram crosspost sequence...");
+              try {
+                const fileUrl = fbUploadedMedia[0].url;
+                const isVideo = fbUploadedMedia[0].type.startsWith('video');
+
+                // Create container
+                let containerUrl = `https://graph.facebook.com/v18.0/${igBusinessAccountId}/media?caption=${encodeURIComponent(postText)}&access_token=${token}`;
+                if (isVideo) {
+                  containerUrl += `&video_url=${encodeURIComponent(fileUrl)}&media_type=VIDEO`;
+                } else {
+                  containerUrl += `&image_url=${encodeURIComponent(fileUrl)}`;
+                }
+
+                const containerRes = await fetch(containerUrl, { method: 'POST' });
+                const containerData = await containerRes.json();
+                if (containerRes.ok && containerData.id) {
+                  const containerId = containerData.id;
+
+                  if (isVideo) {
+                    let containerStatus = 'IN_PROGRESS';
+                    let retries = 0;
+                    while (containerStatus === 'IN_PROGRESS' && retries < 10) {
+                      await new Promise(r => setTimeout(r, 5000));
+                      const statusRes = await fetch(`https://graph.facebook.com/v18.0/${containerId}?fields=status_code&access_token=${token}`);
+                      const statusData = await statusRes.json();
+                      if (statusRes.ok) {
+                        containerStatus = statusData.status_code;
+                      }
+                      retries++;
+                    }
+                  }
+
+                  const publishRes = await fetch(`https://graph.facebook.com/v18.0/${igBusinessAccountId}/media_publish?creation_id=${containerId}&access_token=${token}`, { method: 'POST' });
+                  const publishData = await publishRes.json();
+                  if (publishRes.ok && publishData.id) {
+                    console.log("Auto-crossposted to Instagram successfully!", publishData);
+                    postData.ig_post_id = publishData.id;
+                  } else {
+                    console.warn("Instagram publish error during crosspost:", publishData);
+                  }
+                } else {
+                  console.warn("Instagram container creation error during crosspost:", containerData);
+                }
+              } catch (crosspostErr) {
+                console.error("Crosspost to Instagram failed:", crosspostErr);
+              }
+            } else {
+              if (!igBusinessAccountId) {
+                console.log("No linked Instagram business account found for crossposting.");
+              } else if (!fbUploadedMedia || fbUploadedMedia.length === 0) {
+                console.log("Instagram requires media. Crosspost skipped because no media is uploaded.");
+              }
+            }
           }
         } catch (fbApiErr) {
           console.error("Facebook API error:", fbApiErr);
@@ -2858,6 +2932,24 @@ export default function CreatePost() {
             {contentType === 'quiz' && connectedAccounts.some(a => !a.supportsPolls) && (
               <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <AlertCircle size={14} color="var(--error)" /> Some platforms are hidden because they don't support native polls.
+              </div>
+            )}
+            {selectedTargets.includes('facebook') && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(24, 119, 242, 0.08)', padding: '0.75rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(24, 119, 242, 0.15)', marginTop: '0.75rem', width: 'fit-content' }}>
+                <input 
+                  type="checkbox" 
+                  id="fbCrosspostIg"
+                  checked={fbCrosspostIg} 
+                  onChange={(e) => {
+                    setFbCrosspostIg(e.target.checked);
+                    localStorage.setItem('fb_crosspost_ig', e.target.checked ? 'true' : 'false');
+                  }}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="fbCrosspostIg" style={{ fontSize: '0.9rem', color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span>Auto-crosspost to Instagram</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>(uses Facebook Access Token & page connection)</span>
+                </label>
               </div>
             )}
           </div>

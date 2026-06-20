@@ -272,15 +272,18 @@ export default function AuthCallback() {
               localStorage.setItem('fb_access_token', pages[0].access_token);
               localStorage.setItem('facebook_username', pages[0].name);
 
+              const pageWithIg = pages.find(p => p.instagram_business_account && p.instagram_business_account.id);
+              if (pageWithIg) {
+                localStorage.setItem('ig_business_account_id', pageWithIg.instagram_business_account.id);
+                const igUsername = pageWithIg.instagram_business_account.username || pageWithIg.instagram_business_account.name || pageWithIg.name;
+                localStorage.setItem('instagram_username', igUsername);
+              }
+
               if (state === 'instagram') {
-                const pageWithIg = pages.find(p => p.instagram_business_account && p.instagram_business_account.id);
                 if (pageWithIg) {
-                  localStorage.setItem('ig_business_account_id', pageWithIg.instagram_business_account.id);
                   localStorage.setItem('fb_page_id', pageWithIg.id);
                   localStorage.setItem('fb_page_name', pageWithIg.name);
                   localStorage.setItem('fb_access_token', pageWithIg.access_token);
-                  const igUsername = pageWithIg.instagram_business_account.username || pageWithIg.instagram_business_account.name || pageWithIg.name;
-                  localStorage.setItem('instagram_username', igUsername);
                   pagesSaved = true;
                 } else {
                   fetchError = 'No Instagram Business Account linked to your Facebook Pages. Please link your Instagram Professional account to your Facebook Page.';

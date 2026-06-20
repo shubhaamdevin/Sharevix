@@ -5,7 +5,7 @@ export const generateOAuthUrl = (platformId) => {
   switch (platformId) {
     case 'facebook': {
       const fbClientId = import.meta.env.VITE_FACEBOOK_CLIENT_ID || '2039000620107967';
-      return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${fbClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&response_type=token&scope=pages_manage_posts,pages_read_engagement,pages_show_list,pages_messaging&auth_type=rerequest`;
+      return `https://www.facebook.com/v18.0/dialog/oauth?client_id=${fbClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}&response_type=token&scope=pages_manage_posts,pages_read_engagement,pages_show_list,instagram_basic,instagram_content_publish,instagram_business_basic,instagram_business_content_publish,pages_messaging&auth_type=rerequest`;
     }
     case 'instagram': {
       const igClientId = import.meta.env.VITE_FACEBOOK_CLIENT_ID || '2039000620107967';
