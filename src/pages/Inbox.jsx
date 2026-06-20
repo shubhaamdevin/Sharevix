@@ -153,6 +153,9 @@ export default function Inbox() {
           const lastMsg = msgs[msgs.length - 1];
           const isOnline = lastMsg && lastMsg.sender === 'them' && (Date.now() - lastMsg.timestamp) < 5 * 60 * 1000;
 
+          // If the last message is from the customer and we haven't selected their chat yet, mark as unread
+          const isUnread = lastMsg && lastMsg.sender === 'them' && selectedId !== conv.id;
+
           return {
             id: conv.id,
             name: senderName,
@@ -160,7 +163,7 @@ export default function Inbox() {
             avatar: `https://graph.facebook.com/v18.0/${conv.senders?.data?.[0]?.id || ''}/picture?type=square`,
             lastMessage: msgs[msgs.length - 1]?.text || 'No messages',
             time: new Date(conv.updated_time).toLocaleDateString(),
-            unread: false,
+            unread: isUnread,
             messages: msgs,
             psid: conv.senders?.data?.[0]?.id,
             isOnline: !!isOnline
@@ -170,7 +173,6 @@ export default function Inbox() {
         if (formatted.length > 0) {
           setConversations(formatted);
           setIsRealSync(true);
-          setSelectedId(prev => (prev === null ? formatted[0].id : prev));
         }
       }
     } catch (err) {
@@ -350,7 +352,10 @@ export default function Inbox() {
               return (
                 <div 
                   key={chat.id}
-                  onClick={() => setSelectedId(chat.id)}
+                  onClick={() => {
+                    setSelectedId(chat.id);
+                    setConversations(prev => prev.map(c => c.id === chat.id ? { ...c, unread: false } : c));
+                  }}
                   style={{
                     display: 'flex', gap: '0.75rem', padding: '0.85rem', borderRadius: '14px', cursor: 'pointer',
                     background: isSelected ? 'var(--sidebar-active-bg)' : 'transparent',
@@ -378,7 +383,15 @@ export default function Inbox() {
                     </p>
                   </div>
                   {chat.unread && (
-                    <div style={{ width: '8px', height: '8px', background: 'var(--accent-blue)', borderRadius: '50%', alignSelf: 'center', marginLeft: '0.5rem' }}></div>
+                    <div style={{ 
+                      width: '10px', 
+                      height: '10px', 
+                      background: 'linear-gradient(135deg, #00d2ff, #0084ff)', 
+                      borderRadius: '50%', 
+                      alignSelf: 'center', 
+                      marginLeft: '0.5rem',
+                      boxShadow: '0 0 10px rgba(0, 132, 255, 0.8)'
+                    }}></div>
                   )}
                 </div>
               );
