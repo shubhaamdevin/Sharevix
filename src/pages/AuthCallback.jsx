@@ -254,10 +254,21 @@ export default function AuthCallback() {
 
             // Step 2: Fetch pages using the (long-lived) token
             setMessage('Fetching your Facebook Pages...');
-            const fields = 'name,access_token,category,instagram_business_account{id,username,name}';
-            const res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=${fields}&access_token=${longLivedToken}`);
-            const data = await res.json();
+            let fields = 'name,access_token,category';
+            if (state === 'instagram') {
+              fields += ',instagram_business_account{id,username,name}';
+            }
+            let res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=${fields}&access_token=${longLivedToken}`);
+            let data = await res.json();
             console.log('Facebook /me/accounts response:', JSON.stringify(data));
+
+            if (!res.ok && state === 'instagram') {
+              console.warn('Instagram field query failed, falling back to simple pages query...');
+              fields = 'name,access_token,category';
+              res = await fetch(`https://graph.facebook.com/v18.0/me/accounts?fields=${fields}&access_token=${longLivedToken}`);
+              data = await res.json();
+            }
+
             if (res.ok && data.data && data.data.length > 0) {
               const pages = data.data.map(p => ({
                 id: p.id,
