@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { MessageSquare, Search, Send, Star, Info, ShieldAlert, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { MessageSquare, Search, Send, Star, Info, AlertCircle, Loader2 } from 'lucide-react';
 import { FacebookIcon, InstagramIcon } from '../components/Icons';
 
 const initialDemoConversations = [
@@ -29,20 +29,6 @@ const initialDemoConversations = [
     messages: [
       { id: 1, sender: 'them', text: 'Awesome design! Loved the post style.', time: '09:05 AM' }
     ]
-  },
-  {
-    id: 'demo_3',
-    name: 'Rajesh Kumar',
-    platform: 'facebook',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100',
-    lastMessage: 'Can we schedule a call tomorrow morning?',
-    time: 'Yesterday',
-    unread: false,
-    messages: [
-      { id: 1, sender: 'them', text: 'Are your schedulers automated?', time: 'Yesterday' },
-      { id: 2, sender: 'me', text: 'Yes Rajesh, they publish directly to Facebook and Instagram automatically.', time: 'Yesterday' },
-      { id: 3, sender: 'them', text: 'Can we schedule a call tomorrow morning?', time: 'Yesterday' }
-    ]
   }
 ];
 
@@ -53,17 +39,20 @@ export default function Inbox() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isRealSync, setIsRealSync] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
 
   const fbToken = localStorage.getItem('fb_access_token');
   const fbPageId = localStorage.getItem('fb_page_id');
+  const typingTimeoutRef = useRef(null);
 
-  const fetchRealConversations = async () => {
+  const fetchRealConversations = async (showLoadingState = false) => {
     if (!fbToken || !fbPageId) {
       setIsRealSync(false);
       return;
     }
 
-    setLoading(true);
+    if (showLoadingState) setLoading(true);
     try {
       const res = await fetch(`https://graph.facebook.com/v18.0/${fbPageId}/conversations?fields=senders,messages{message,created_time,from},updated_time&access_token=${fbToken}`);
       const data = await res.json();
@@ -93,44 +82,75 @@ export default function Inbox() {
         
         if (formatted.length > 0) {
           setConversations(formatted);
-          setSelectedId(formatted[0].id);
           setIsRealSync(true);
+          // Set selection if not set or if current selection is demo
+          setSelectedId(prev => (prev.startsWith('demo_') ? formatted[0].id : prev));
         }
       }
     } catch (err) {
-      console.warn("Failed to load real FB conversations, using demo:", err);
+      console.warn("Failed to load real FB conversations:", err);
     } finally {
-      setLoading(false);
+      if (showLoadingState) setLoading(false);
     }
   };
 
+  // Poll for new messages every 5 seconds (Real-time live receiving)
   useEffect(() => {
-    fetchRealConversations();
+    fetchRealConversations(true);
+    const interval = setInterval(() => {
+      fetchRealConversations(false);
+    }, 5000);
+    return () => clearInterval(interval);
   }, [fbToken, fbPageId]);
 
   const currentChat = conversations.find(c => c.id === selectedId);
 
+  // Send Typing Indicator Action to Facebook API
+  const sendTypingIndicator = async (isActive) => {
+    if (!isRealSync || !currentChat?.psid || !fbToken) return;
+    try {
+      await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${fbToken}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { id: currentChat.psid },
+          sender_action: isActive ? 'typing_on' : 'typing_off'
+        })
+      });
+    } catch (err) {
+      console.warn("Error sending typing indicator:", err);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setReplyText(e.target.value);
+    
+    // Trigger typing indicator on Facebook
+    sendTypingIndicator(true);
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTypingIndicator(false);
+    }, 2000);
+  };
+
   const handleSend = async () => {
-    if (!replyText.trim()) return;
+    if (!replyText.trim() || sending) return;
+    setSending(true);
 
     if (isRealSync && !String(selectedId).startsWith('demo_')) {
-      // Send real message via Facebook API
       try {
         const res = await fetch(`https://graph.facebook.com/v18.0/me/messages?access_token=${fbToken}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            recipient: {
-              id: currentChat.psid
-            },
-            message: {
-              text: replyText
-            }
+            recipient: { id: currentChat.psid },
+            message: { text: replyText }
           })
         });
         if (res.ok) {
-          fetchRealConversations();
           setReplyText('');
+          await fetchRealConversations(false);
           window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'success', message: 'Message sent!' }}));
         } else {
           const errData = await res.json();
@@ -138,6 +158,8 @@ export default function Inbox() {
         }
       } catch (err) {
         window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'error', message: err.message }}));
+      } finally {
+        setSending(false);
       }
     } else {
       // Offline fallback / demo update
@@ -160,6 +182,30 @@ export default function Inbox() {
         return c;
       }));
       setReplyText('');
+      setSending(false);
+
+      // Simulate client typing a mock response after 1.5 seconds
+      setOtherUserTyping(true);
+      setTimeout(() => {
+        setOtherUserTyping(false);
+        const replyBack = {
+          id: Date.now() + 1,
+          sender: 'them',
+          text: 'Thank you for your reply! Our team will get back to you shortly.',
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setConversations(prev => prev.map(c => {
+          if (c.id === selectedId) {
+            return {
+              ...c,
+              lastMessage: replyBack.text,
+              time: 'Just now',
+              messages: [...c.messages, replyBack]
+            };
+          }
+          return c;
+        }));
+      }, 3500);
     }
   };
 
@@ -200,7 +246,7 @@ export default function Inbox() {
 
           {/* List */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            {loading ? (
+            {loading && conversations.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem', fontSize: '0.85rem' }}>Syncing data stream...</div>
             ) : filteredChats.map(chat => {
               const isSelected = chat.id === selectedId;
@@ -279,6 +325,21 @@ export default function Inbox() {
                   </div>
                 );
               })}
+
+              {/* Bouncing Dots Typing Loader Bubble */}
+              {otherUserTyping && (
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <div style={{
+                    padding: '0.85rem 1.1rem', borderRadius: '16px',
+                    background: 'rgba(255,255,255,0.03)', border: '1px solid var(--panel-border)',
+                    display: 'flex', alignItems: 'center', gap: '4px'
+                  }}>
+                    <motion.div style={{ width: '6px', height: '6px', background: 'var(--text-secondary)', borderRadius: '50%' }} animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 0.6, ease: 'easeInOut', delay: 0 }} />
+                    <motion.div style={{ width: '6px', height: '6px', background: 'var(--text-secondary)', borderRadius: '50%' }} animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 0.6, ease: 'easeInOut', delay: 0.15 }} />
+                    <motion.div style={{ width: '6px', height: '6px', background: 'var(--text-secondary)', borderRadius: '50%' }} animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 0.6, ease: 'easeInOut', delay: 0.3 }} />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Reply Footer */}
@@ -287,15 +348,18 @@ export default function Inbox() {
                 type="text" 
                 placeholder={`Reply to ${currentChat.name}...`}
                 value={replyText}
-                onChange={e => setReplyText(e.target.value)}
+                onChange={handleInputChange}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 style={{ flex: 1, padding: '0.8rem 1.2rem', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--panel-border)', borderRadius: '16px', color: 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
               />
               <button 
                 onClick={handleSend}
-                style={{ padding: '0.8rem 1.2rem', background: 'var(--btn-primary-bg)', color: '#000', border: 'none', borderRadius: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                disabled={sending}
+                style={{ padding: '0.8rem 1.2rem', background: 'var(--btn-primary-bg)', color: '#000', border: 'none', borderRadius: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', minWidth: '100px', justifyContent: 'center' }}
               >
-                <Send size={16} /> Send
+                {sending ? <Loader2 size={16} className="animate-spin" /> : <>
+                  <Send size={16} /> Send
+                </>}
               </button>
             </div>
           </div>
