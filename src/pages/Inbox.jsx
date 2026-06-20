@@ -137,11 +137,20 @@ export default function Inbox() {
 
     if (showLoadingState) setLoading(true);
     try {
-      const res = await fetch(`https://graph.facebook.com/v18.0/${fbPageId}/conversations?fields=senders,messages{message,created_time,from},updated_time&access_token=${fbToken}`);
-      const data = await res.json();
-      
-      if (res.ok && data.data) {
-        const formatted = data.data.map(conv => {
+      // 1. Fetch Facebook Page Conversations
+      const fbPromise = fetch(`https://graph.facebook.com/v18.0/${fbPageId}/conversations?fields=senders,messages{message,created_time,from},updated_time&access_token=${fbToken}`).then(r => r.json());
+
+      // 2. Fetch linked Instagram Business Account ID
+      const igAccPromise = fetch(`https://graph.facebook.com/v18.0/${fbPageId}?fields=instagram_business_account&access_token=${fbToken}`).then(r => r.json());
+
+      const [fbData, igAccData] = await Promise.all([fbPromise, igAccPromise]);
+
+      let fbList = [];
+      let igList = [];
+
+      // Format Facebook conversations
+      if (fbData && fbData.data) {
+        fbList = fbData.data.map(conv => {
           const senderName = conv.senders?.data?.[0]?.name || 'Anonymous User';
           const msgs = (conv.messages?.data || []).map(m => ({
             id: m.id,
@@ -151,11 +160,8 @@ export default function Inbox() {
             timestamp: new Date(m.created_time).getTime()
           })).reverse();
 
-          // Calculate "Active Now" realistically: if the last message was from the user ('them') and within the last 5 minutes
           const lastMsg = msgs[msgs.length - 1];
           const isOnline = lastMsg && lastMsg.sender === 'them' && (Date.now() - lastMsg.timestamp) < 5 * 60 * 1000;
-
-          // If the last message is from the customer and we haven't selected their chat yet, mark as unread
           const isUnread = lastMsg && lastMsg.sender === 'them' && selectedId !== conv.id && readMessageIds[conv.id] !== lastMsg.id;
 
           return {
@@ -163,22 +169,61 @@ export default function Inbox() {
             name: senderName,
             platform: 'facebook',
             avatar: `https://graph.facebook.com/v18.0/${conv.senders?.data?.[0]?.id || ''}/picture?type=square`,
-            lastMessage: msgs[msgs.length - 1]?.text || 'No messages',
+            lastMessage: lastMsg?.text || 'No messages',
             time: new Date(conv.updated_time).toLocaleDateString(),
             unread: isUnread,
             messages: msgs,
             psid: conv.senders?.data?.[0]?.id,
-            isOnline: !!isOnline
+            isOnline: !!isOnline,
+            updatedTimeRaw: new Date(conv.updated_time).getTime()
           };
         });
+      }
+
+      // 3. Fetch Instagram conversations if business account is linked
+      const igBusinessAccountId = igAccData?.instagram_business_account?.id;
+      if (igBusinessAccountId) {
+        const igRes = await fetch(`https://graph.facebook.com/v18.0/${igBusinessAccountId}/conversations?fields=senders,messages{message,created_time,from},updated_time&access_token=${fbToken}`);
+        const igData = await igRes.json();
         
-        if (formatted.length > 0) {
-          setConversations(formatted);
-          setIsRealSync(true);
+        if (igData && igData.data) {
+          igList = igData.data.map(conv => {
+            const senderName = conv.senders?.data?.[0]?.username || conv.senders?.data?.[0]?.name || 'Instagram User';
+            const msgs = (conv.messages?.data || []).map(m => ({
+              id: m.id,
+              sender: m.from?.id === igBusinessAccountId ? 'me' : 'them',
+              text: m.message,
+              time: new Date(m.created_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              timestamp: new Date(m.created_time).getTime()
+            })).reverse();
+
+            const lastMsg = msgs[msgs.length - 1];
+            const isOnline = lastMsg && lastMsg.sender === 'them' && (Date.now() - lastMsg.timestamp) < 5 * 60 * 1000;
+            const isUnread = lastMsg && lastMsg.sender === 'them' && selectedId !== conv.id && readMessageIds[conv.id] !== lastMsg.id;
+
+            return {
+              id: conv.id,
+              name: senderName,
+              platform: 'instagram',
+              avatar: `https://graph.facebook.com/v18.0/${conv.senders?.data?.[0]?.id || ''}/picture?type=square`,
+              lastMessage: lastMsg?.text || 'No messages',
+              time: new Date(conv.updated_time).toLocaleDateString(),
+              unread: isUnread,
+              messages: msgs,
+              psid: conv.senders?.data?.[0]?.id,
+              isOnline: !!isOnline,
+              updatedTimeRaw: new Date(conv.updated_time).getTime()
+            };
+          });
         }
       }
+
+      // Combine and Sort
+      const combined = [...fbList, ...igList].sort((a, b) => b.updatedTimeRaw - a.updatedTimeRaw);
+      setConversations(combined);
+      setIsRealSync(true);
     } catch (err) {
-      console.warn("Failed to load real FB conversations:", err);
+      console.warn("Failed to load Unified Inbox data:", err);
     } finally {
       if (showLoadingState) setLoading(false);
     }
