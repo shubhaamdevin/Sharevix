@@ -242,7 +242,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {loading ? <PremiumLoader /> : children}
+      {children}
     </AuthContext.Provider>
   );
 }
