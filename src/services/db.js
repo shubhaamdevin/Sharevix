@@ -415,5 +415,34 @@ export const dbService = {
       console.warn("Firestore write failed or timed out, falling back to localStorage database:", e);
       return fallbackMockAdd();
     }
+  },
+
+  async updatePost(postId, updatedData) {
+    // Update local storage fallback
+    try {
+      const localPosts = localStorage.getItem('postHistory');
+      if (localPosts) {
+        const parsed = JSON.parse(localPosts);
+        const idx = parsed.findIndex(p => String(p.id) === String(postId));
+        if (idx !== -1) {
+          parsed[idx] = { ...parsed[idx], ...updatedData };
+          localStorage.setItem('postHistory', JSON.stringify(parsed));
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update post in localStorage fallback:", err);
+    }
+
+    // Update in Firestore
+    if (!db) return true; // fallback was updated
+    try {
+      const postRef = doc(db, "posts", postId);
+      await updateDoc(postRef, updatedData);
+      return true;
+    } catch (e) {
+      console.error("Error updating post in Firestore: ", e);
+      return false;
+    }
   }
 };
+

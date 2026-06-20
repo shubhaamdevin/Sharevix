@@ -25,6 +25,82 @@ export default function TotalPosts() {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const platformDropdownRef = useRef(null);
   const statusDropdownRef = useRef(null);
+  const [expandedComments, setExpandedComments] = useState({});
+
+  const getPostComments = (post) => {
+    if (post.commentsList) return post.commentsList;
+    return [
+      { id: 1, author: "Aarav Sharma", text: "This is super useful! Thanks for sharing. 🙌", time: "2 hours ago", likes: 12 },
+      { id: 2, author: "Sneha Patel", text: "Love the branding and the creative style of this post. Great work Sharevix team!", time: "4 hours ago", likes: 8 },
+      { id: 3, author: "Rajesh Kumar", text: "Can you share more details about the rollout timeline? Looks promising.", time: "1 day ago", likes: 3 }
+    ];
+  };
+
+  const handleAddComment = async (postId, text) => {
+    if (!text.trim()) return;
+    const targetPost = posts.find(p => p.id === postId);
+    if (!targetPost) return;
+
+    const commentObj = {
+      id: Date.now(),
+      author: "You",
+      text: text,
+      time: "Just now",
+      likes: 0
+    };
+
+    const currentComments = targetPost.commentsList || [
+      { id: 1, author: "Aarav Sharma", text: "This is super useful! Thanks for sharing. 🙌", time: "2 hours ago", likes: 12 },
+      { id: 2, author: "Sneha Patel", text: "Love the branding and the creative style of this post. Great work Sharevix team!", time: "4 hours ago", likes: 8 },
+      { id: 3, author: "Rajesh Kumar", text: "Can you share more details about the rollout timeline? Looks promising.", time: "1 day ago", likes: 3 }
+    ];
+
+    const updatedComments = [...currentComments, commentObj];
+
+    // Update state
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        return { ...p, commentsList: updatedComments };
+      }
+      return p;
+    }));
+
+    // Update DB (both Firestore and LocalStorage fallback)
+    await dbService.updatePost(postId, { commentsList: updatedComments });
+  };
+
+  const handleLikePost = async (postId) => {
+    const targetPost = posts.find(p => p.id === postId);
+    if (!targetPost) return;
+    const currentStats = getEngagementStats(targetPost);
+    const newLikes = currentStats.likes + 1;
+
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        return { ...p, likes: newLikes };
+      }
+      return p;
+    }));
+
+    await dbService.updatePost(postId, { likes: newLikes });
+  };
+
+  const handleFollowerPost = async (postId) => {
+    const targetPost = posts.find(p => p.id === postId);
+    if (!targetPost) return;
+    const currentStats = getEngagementStats(targetPost);
+    const newFollowers = currentStats.followers + 1;
+
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        return { ...p, followers: newFollowers };
+      }
+      return p;
+    }));
+
+    await dbService.updatePost(postId, { followers: newFollowers });
+  };
+
 
   const platformOptions = [
     { id: 'all', name: 'All Platforms', icon: Globe, color: 'var(--accent-blue)' },
@@ -112,9 +188,10 @@ export default function TotalPosts() {
       return { likes: 0, comments: 0, followers: 0 };
     }
     const seed = String(post.id).charCodeAt(0) || 10;
-    const likes = (seed % 150) + 45;
-    const comments = Math.floor(likes * 0.12) + 2;
-    const followers = Math.floor(likes * 0.08) + 1;
+    const likes = post.likes !== undefined ? post.likes : ((seed % 150) + 45);
+    const commentsList = getPostComments(post);
+    const comments = commentsList.length;
+    const followers = post.followers !== undefined ? post.followers : (Math.floor((seed % 150 + 45) * 0.08) + 1);
     return { likes, comments, followers };
   };
 
@@ -408,27 +485,79 @@ export default function TotalPosts() {
                   {/* Dynamic Post Engagement & Subscriber Stats */}
                   {post.status === 'published' && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', background: 'rgba(0,0,0,0.15)', padding: '1rem', borderRadius: '16px', border: '1px solid var(--panel-border)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div 
+                        onClick={() => handleLikePost(post.id)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '8px', transition: 'background 0.2s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(225, 48, 108, 0.08)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
                         <Heart size={18} color="#E1306C" />
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Likes / Reactions</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Likes / Reactions</span>
+                            <span style={{ fontSize: '0.65rem', color: '#E1306C', fontWeight: 600 }}>+1</span>
+                          </div>
                           <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{stats.likes}</div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div 
+                        onClick={() => setExpandedComments(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '8px', background: expandedComments[post.id] ? 'rgba(255,255,255,0.05)' : 'transparent', transition: 'background 0.2s' }}
+                        onMouseEnter={e => { if(!expandedComments[post.id]) e.currentTarget.style.background = 'rgba(58, 123, 213, 0.08)'; }}
+                        onMouseLeave={e => { if(!expandedComments[post.id]) e.currentTarget.style.background = 'transparent'; }}
+                      >
                         <MessageCircle size={18} color="var(--accent-blue)" />
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Comments</div>
-                          <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{stats.comments}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Comments</span>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--accent-blue)', fontWeight: 600 }}>(View)</span>
+                          </div>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>{getPostComments(post).length}</div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div 
+                        onClick={() => handleFollowerPost(post.id)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '8px', transition: 'background 0.2s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(0, 230, 118, 0.08)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
                         <UserPlus size={18} color="var(--success)" />
                         <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Followers Gained</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Followers Gained</span>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--success)', fontWeight: 600 }}>+1</span>
+                          </div>
                           <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>+{stats.followers}</div>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {post.status === 'published' && expandedComments[post.id] && (
+                    <div style={{ background: 'var(--bg-dark)', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', fontWeight: 700, margin: 0, color: 'var(--accent-blue)' }}>Recent Comments ({getPostComments(post).length})</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '4px' }}>
+                        {getPostComments(post).map((c) => (
+                          <div key={c.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '0.5rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{c.author}</span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{c.time}</span>
+                            </div>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>{c.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Add comment form */}
+                      <form onSubmit={(e) => {
+                        e.preventDefault();
+                        const val = e.target.elements.newComment.value;
+                        handleAddComment(post.id, val);
+                        e.target.reset();
+                      }} style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem' }}>
+                        <input name="newComment" required placeholder="Write a reply..." style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '8px', border: '1px solid var(--panel-border)', background: 'var(--panel-bg)', color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }} />
+                        <button type="submit" className="btn-primary" style={{ padding: '0.6rem 1.25rem', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600 }}>Send</button>
+                      </form>
                     </div>
                   )}
 
