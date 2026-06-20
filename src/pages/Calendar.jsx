@@ -3,15 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, CheckCircle2, FileEdit, Trash2, X, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
-import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon, ThreadsIcon } from '../components/Icons';
+import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, ThreadsIcon } from '../components/Icons';
 import DeletePostModal from '../components/DeletePostModal';
 
 const platformIcons = {
   facebook: { icon: FacebookIcon, color: '#1877F2' },
   instagram: { icon: InstagramIcon, color: '#E1306C' },
   x: { icon: TwitterIcon, color: '#000000' },
-  linkedin: { icon: LinkedinIcon, color: '#0A66C2' },
-  tiktok: { icon: TiktokIcon, color: '#000000' },
   youtube: { icon: YoutubeIcon, color: '#FF0000' },
   threads: { icon: ThreadsIcon, color: '#000000' }
 };

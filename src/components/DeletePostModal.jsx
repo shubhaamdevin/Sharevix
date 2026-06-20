@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X, Check } from 'lucide-react';
-import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon, ThreadsIcon } from './Icons';
+import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, ThreadsIcon } from './Icons';
 
 const platformInfo = {
   facebook: { name: 'Facebook', icon: FacebookIcon, color: '#1877F2' },
   instagram: { name: 'Instagram', icon: InstagramIcon, color: '#E1306C' },
   x: { name: 'Twitter/X', icon: TwitterIcon, color: '#ffffff' },
-  linkedin: { name: 'LinkedIn', icon: LinkedinIcon, color: '#0A66C2' },
-  tiktok: { name: 'TikTok', icon: TiktokIcon, color: '#000000' },
   youtube: { name: 'YouTube', icon: YoutubeIcon, color: '#FF0000' },
   threads: { name: 'Threads', icon: ThreadsIcon, color: '#ffffff' }
 };

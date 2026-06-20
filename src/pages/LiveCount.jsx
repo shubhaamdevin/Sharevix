@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Radio, Users, AlertCircle, Link2, ChevronRight, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, ThreadsIcon, PinterestIcon } from '../components/Icons';
+import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, ThreadsIcon } from '../components/Icons';
 import { isFacebookTokenError, disconnectFacebookAndInstagram, isGoogleTokenError, disconnectYouTube, isThreadsTokenError, disconnectThreads } from '../services/tokenHelper';
 
 const platformDetails = {

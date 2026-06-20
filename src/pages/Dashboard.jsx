@@ -4,14 +4,13 @@ import { Eye, Heart, Activity, PenSquare, ChevronDown, Globe, CheckCircle2, Cloc
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
-import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon } from '../components/Icons';
+import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, ThreadsIcon } from '../components/Icons';
 
 const platformIcons = {
   facebook: { icon: FacebookIcon, color: '#1877F2' },
   instagram: { icon: InstagramIcon, color: '#E1306C' },
   x: { icon: TwitterIcon, color: '#000000' },
-  linkedin: { icon: LinkedinIcon, color: '#0A66C2' },
-  tiktok: { icon: TiktokIcon, color: '#000000' },
+  threads: { icon: ThreadsIcon, color: '#000000' },
   youtube: { icon: YoutubeIcon, color: '#FF0000' }
 };
 
@@ -119,8 +118,7 @@ export default function Dashboard() {
     { id: 'instagram', name: 'Instagram', icon: InstagramIcon, color: '#E1306C' },
     { id: 'facebook', name: 'Facebook', icon: FacebookIcon, color: '#1877F2' },
     { id: 'x', name: 'X (Twitter)', icon: TwitterIcon, color: '#ffffff' },
-    { id: 'linkedin', name: 'LinkedIn', icon: LinkedinIcon, color: '#0A66C2' },
-    { id: 'tiktok', name: 'TikTok', icon: TiktokIcon, color: '#ffffff' },
+    { id: 'threads', name: 'Threads', icon: ThreadsIcon, color: '#ffffff' },
     { id: 'youtube', name: 'YouTube', icon: YoutubeIcon, color: '#FF0000' }
   ];
 

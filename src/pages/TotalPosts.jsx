@@ -3,17 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, FileEdit, Trash2, Globe, Heart, MessageCircle, UserPlus, Filter, CheckCircle2, Clock, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
-import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon, PinterestIcon } from '../components/Icons';
+import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, ThreadsIcon } from '../components/Icons';
 import DeletePostModal from '../components/DeletePostModal';
 
 const platformIcons = {
   facebook: { icon: FacebookIcon, color: '#1877F2' },
   instagram: { icon: InstagramIcon, color: '#E1306C' },
   x: { icon: TwitterIcon, color: '#ffffff' },
-  linkedin: { icon: LinkedinIcon, color: '#0A66C2' },
-  tiktok: { icon: TiktokIcon, color: '#ffffff' },
   youtube: { icon: YoutubeIcon, color: '#FF0000' },
-  pinterest: { icon: PinterestIcon, color: '#E60023' }
+  threads: { icon: ThreadsIcon, color: '#ffffff' }
 };
 
 export default function TotalPosts() {
@@ -34,8 +32,7 @@ export default function TotalPosts() {
     { id: 'instagram', name: 'Instagram', icon: InstagramIcon, color: '#E1306C' },
     { id: 'youtube', name: 'YouTube', icon: YoutubeIcon, color: '#FF0000' },
     { id: 'x', name: 'X (Twitter)', icon: TwitterIcon, color: 'var(--text-primary)' },
-    { id: 'linkedin', name: 'LinkedIn', icon: LinkedinIcon, color: '#0A66C2' },
-    { id: 'pinterest', name: 'Pinterest', icon: PinterestIcon, color: '#E60023' }
+    { id: 'threads', name: 'Threads', icon: ThreadsIcon, color: 'var(--text-primary)' }
   ];
 
   const statusOptions = [
