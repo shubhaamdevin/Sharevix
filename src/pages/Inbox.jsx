@@ -244,14 +244,6 @@ export default function Inbox() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: '1rem', minHeight: 0 }}>
       
-      {/* Real Sync Status Alert Banner */}
-      {!isRealSync && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1.25rem', background: 'rgba(255, 152, 0, 0.05)', border: '1px dashed rgba(255, 152, 0, 0.3)', borderRadius: '12px', fontSize: '0.82rem', color: 'orange', flexShrink: 0 }}>
-          <AlertCircle size={16} />
-          <span><strong>Demo Mode Active:</strong> Sync real Meta Page conversations by connecting your Facebook account inside the <strong>Accounts</strong> tab.</span>
-        </div>
-      )}
-
       <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', flex: 1, background: 'var(--panel-bg)', borderRadius: '24px', border: '1px solid var(--panel-border)', overflow: 'hidden', minHeight: 0 }}>
         
         {/* LEFT: Chats List */}
@@ -274,7 +266,16 @@ export default function Inbox() {
           {/* List */}
           <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', minHeight: 0 }}>
             {loading && conversations.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem', fontSize: '0.85rem' }}>Syncing data stream...</div>
+              // High fidelity skeleton loader for conversations list
+              Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '0.75rem', padding: '0.85rem', borderRadius: '14px', border: '1px solid transparent', alignItems: 'center', opacity: 0.6 }} className="animate-pulse">
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }}></div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ width: '60%', height: '12px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)' }}></div>
+                    <div style={{ width: '90%', height: '10px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}></div>
+                  </div>
+                </div>
+              ))
             ) : filteredChats.map(chat => {
               const isSelected = chat.id === selectedId;
               const PlatformIcon = chat.platform === 'facebook' ? FacebookIcon : InstagramIcon;
@@ -346,7 +347,21 @@ export default function Inbox() {
               ref={chatBodyRef}
               style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 0 }}
             >
-              {currentChat.messages.map(m => {
+              {loading && currentChat.messages.length === 0 ? (
+                // Messages loading skeleton
+                Array.from({ length: 3 }).map((_, idx) => {
+                  const isMe = idx % 2 === 0;
+                  return (
+                    <div key={idx} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }} className="animate-pulse">
+                      <div style={{
+                        maxWidth: '50%', width: '180px', height: '60px', borderRadius: '16px',
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid var(--panel-border)',
+                      }} />
+                    </div>
+                  );
+                })
+              ) : currentChat.messages.map(m => {
                 const isMe = m.sender === 'me';
                 return (
                   <div key={m.id} style={{ display: 'flex', justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
