@@ -3,49 +3,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Search, Send, Star, Info, AlertCircle, Loader2 } from 'lucide-react';
 import { FacebookIcon, InstagramIcon } from '../components/Icons';
 
-const initialDemoConversations = [
-  {
-    id: 'demo_1',
-    name: 'Amit Sharma',
-    platform: 'facebook',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
-    lastMessage: 'Aapki service prices kya hain for monthly package?',
-    time: '2 mins ago',
-    unread: true,
-    isOnline: true,
-    messages: [
-      { id: 1, sender: 'them', text: 'Hello! I saw your post about social media management.', time: '10:15 AM' },
-      { id: 2, sender: 'me', text: 'Hi Amit! How can we help you today?', time: '10:17 AM' },
-      { id: 3, sender: 'them', text: 'Aapki service prices kya hain for monthly package?', time: '10:18 AM' }
-    ]
-  },
-  {
-    id: 'demo_2',
-    name: 'Neha Kapoor',
-    platform: 'instagram',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100',
-    lastMessage: 'Awesome design! Loved the post style.',
-    time: '1 hour ago',
-    unread: false,
-    isOnline: false,
-    messages: [
-      { id: 1, sender: 'them', text: 'Awesome design! Loved the post style.', time: '09:05 AM' }
-    ]
-  }
-];
-
 export default function Inbox() {
-  const [conversations, setConversations] = useState(initialDemoConversations);
-  const [selectedId, setSelectedId] = useState('demo_1');
+  const fbToken = localStorage.getItem('fb_access_token');
+  const fbPageId = localStorage.getItem('fb_page_id');
+
+  const [conversations, setConversations] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [isRealSync, setIsRealSync] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isRealSync, setIsRealSync] = useState(!!(fbToken && fbPageId));
+  const [loading, setLoading] = useState(!!(fbToken && fbPageId));
   const [sending, setSending] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
 
-  const fbToken = localStorage.getItem('fb_access_token');
-  const fbPageId = localStorage.getItem('fb_page_id');
   const typingTimeoutRef = useRef(null);
   const chatBodyRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -63,6 +33,7 @@ export default function Inbox() {
   const fetchRealConversations = async (showLoadingState = false) => {
     if (!fbToken || !fbPageId) {
       setIsRealSync(false);
+      setLoading(false);
       return;
     }
 
@@ -103,7 +74,7 @@ export default function Inbox() {
         if (formatted.length > 0) {
           setConversations(formatted);
           setIsRealSync(true);
-          setSelectedId(prev => (prev.startsWith('demo_') ? formatted[0].id : prev));
+          setSelectedId(prev => (prev === null ? formatted[0].id : prev));
         }
       }
     } catch (err) {
@@ -320,7 +291,26 @@ export default function Inbox() {
         </div>
 
         {/* RIGHT: Chat Window */}
-        {currentChat ? (
+        {loading && !currentChat ? (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+            {/* Header skeleton */}
+            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }} className="animate-pulse">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }}></div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <div style={{ width: '100px', height: '12px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}></div>
+                  <div style={{ width: '60px', height: '10px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}></div>
+                </div>
+              </div>
+            </div>
+            {/* Messages skeleton */}
+            <div style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 0 }} className="animate-pulse">
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ width: '220px', height: '60px', borderRadius: '16px', background: 'rgba(255,255,255,0.04)' }} /></div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}><div style={{ width: '180px', height: '60px', borderRadius: '16px', background: 'rgba(255,255,255,0.04)' }} /></div>
+              <div style={{ display: 'flex', justifyContent: 'flex-start' }}><div style={{ width: '250px', height: '60px', borderRadius: '16px', background: 'rgba(255,255,255,0.04)' }} /></div>
+            </div>
+          </div>
+        ) : currentChat ? (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
             {/* Chat Header */}
             <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
