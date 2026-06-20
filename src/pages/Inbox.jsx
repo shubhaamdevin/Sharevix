@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Search, Send, Star, Info, AlertCircle, Loader2, Mic, Image as ImageIcon, Smile, SmilePlus, Paperclip } from 'lucide-react';
 import { FacebookIcon, InstagramIcon } from '../components/Icons';
+import EmojiPicker from 'emoji-picker-react';
 
 export default function Inbox() {
   const fbToken = localStorage.getItem('fb_access_token');
@@ -20,6 +21,8 @@ export default function Inbox() {
   const chatBodyRef = useRef(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showStickers, setShowStickers] = useState(false);
@@ -29,13 +32,89 @@ export default function Inbox() {
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'success', message: `Selected file: ${file.name}` }}));
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const imageMessage = {
+          id: Date.now(),
+          sender: 'me',
+          type: 'image',
+          imageUrl: event.target.result,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setConversations(prev => prev.map(c => {
+          if (c.id === selectedId) {
+            return {
+              ...c,
+              lastMessage: '📷 Photo attachment',
+              time: 'Just now',
+              messages: [...c.messages, imageMessage]
+            };
+          }
+          return c;
+        }));
+        window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'success', message: 'Image sent successfully!' }}));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        
+        const audioMessage = {
+          id: Date.now(),
+          sender: 'me',
+          type: 'audio',
+          audioUrl: audioUrl,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+
+        setConversations(prev => prev.map(c => {
+          if (c.id === selectedId) {
+            return {
+              ...c,
+              lastMessage: '🎵 Voice message',
+              time: 'Just now',
+              messages: [...c.messages, audioMessage]
+            };
+          }
+          return c;
+        }));
+        window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'success', message: 'Voice message sent!' }}));
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.warn("Could not start audio recording:", err);
+      window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'error', message: 'Permission to access microphone denied' }}));
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      setIsRecording(false);
     }
   };
 
   const addEmoji = (emoji) => {
     setReplyText(prev => prev + emoji);
-    setShowEmojiPicker(false);
   };
 
   const scrollToBottom = () => {
@@ -380,7 +459,13 @@ export default function Inbox() {
                       border: isMe ? 'none' : '1px solid var(--panel-border)',
                       boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
                     }}>
-                      <div style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>{m.text}</div>
+                      {m.type === 'image' ? (
+                        <img src={m.imageUrl} alt="Uploaded attachment" style={{ maxWidth: '100%', borderRadius: '12px', display: 'block', maxHeight: '200px' }} />
+                      ) : m.type === 'audio' ? (
+                        <audio controls src={m.audioUrl} style={{ width: '200px', display: 'block', outline: 'none' }} />
+                      ) : (
+                        <div style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>{m.text}</div>
+                      )}
                       <div style={{ fontSize: '0.65rem', textAlign: 'right', marginTop: '0.25rem', opacity: 0.7 }}>{m.time}</div>
                     </div>
                   </div>
@@ -415,19 +500,13 @@ export default function Inbox() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    style={{ position: 'absolute', bottom: '100%', right: '70px', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '16px', padding: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', zIndex: 100, boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}
+                    style={{ position: 'absolute', bottom: '100%', right: '10px', zIndex: 100, boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}
                   >
-                    {['😀', '😂', '😍', '🔥', '👍', '❤️', '👏', '🎉', '💡', '🚀'].map(emoji => (
-                      <button 
-                        key={emoji} 
-                        onClick={() => addEmoji(emoji)}
-                        style={{ fontSize: '1.25rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', borderRadius: '8px', transition: 'background 0.2s' }}
-                        onMouseEnter={e => e.target.style.background = 'rgba(255,255,255,0.08)'}
-                        onMouseLeave={e => e.target.style.background = 'none'}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
+                    <EmojiPicker 
+                      onEmojiClick={(emojiData) => addEmoji(emojiData.emoji)} 
+                      theme="dark" 
+                      lazyLoadEmojis={true}
+                    />
                   </motion.div>
                 )}
 
@@ -442,7 +521,23 @@ export default function Inbox() {
                       <button 
                         key={sticker} 
                         onClick={() => {
-                          setReplyText(prev => prev + ' ' + sticker + ' ');
+                          const stickerMsg = {
+                            id: Date.now(),
+                            sender: 'me',
+                            text: sticker,
+                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          };
+                          setConversations(prev => prev.map(c => {
+                            if (c.id === selectedId) {
+                              return {
+                                ...c,
+                                lastMessage: `sticker ${sticker}`,
+                                time: 'Just now',
+                                messages: [...c.messages, stickerMsg]
+                              };
+                            }
+                            return c;
+                          }));
                           setShowStickers(false);
                         }}
                         style={{ fontSize: '1.75rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem' }}
@@ -462,16 +557,38 @@ export default function Inbox() {
                   >
                     <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Trending GIFs</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                      {['⚡', '✨', '🎈', '💖'].map((gif, index) => (
+                      {[
+                        { icon: '🔥', url: 'https://media.giphy.com/media/t3kiY94p1w8Vgi84jS/giphy.gif' },
+                        { icon: '✨', url: 'https://media.giphy.com/media/313c380-1a2d-11ea-800a-0242ac130002/giphy.gif' },
+                        { icon: '🎈', url: 'https://media.giphy.com/media/10ZEx0FoCU2PnM/giphy.gif' },
+                        { icon: '💖', url: 'https://media.giphy.com/media/l41YcGT5ShJa0UXpm/giphy.gif' }
+                      ].map((gif, index) => (
                         <div 
                           key={index} 
                           onClick={() => {
-                            setReplyText(prev => prev + ` [GIF: ${gif}] `);
+                            const gifMsg = {
+                              id: Date.now(),
+                              sender: 'me',
+                              type: 'image',
+                              imageUrl: gif.url || 'https://media.giphy.com/media/10ZEx0FoCU2PnM/giphy.gif',
+                              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            };
+                            setConversations(prev => prev.map(c => {
+                              if (c.id === selectedId) {
+                                  return {
+                                    ...c,
+                                    lastMessage: '📷 GIF attachment',
+                                    time: 'Just now',
+                                    messages: [...c.messages, gifMsg]
+                                  };
+                              }
+                              return c;
+                            }));
                             setShowGifs(false);
                           }}
-                          style={{ height: '50px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.25rem' }}
+                          style={{ height: '60px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.25rem' }}
                         >
-                          GIF {gif}
+                          GIF {gif.icon}
                         </div>
                       ))}
                     </div>
@@ -484,10 +601,7 @@ export default function Inbox() {
                 
                 {/* Audio/Mic Button */}
                 <button 
-                  onClick={() => {
-                    setIsRecording(!isRecording);
-                    window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'success', message: isRecording ? 'Recording stopped' : 'Recording started...' }}));
-                  }}
+                  onClick={isRecording ? stopRecording : startRecording}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: isRecording ? 'red' : '#1877F2' }}
                 >
                   <Mic size={20} style={{ transform: isRecording ? 'scale(1.2)' : 'none', transition: 'transform 0.2s' }} />
@@ -538,11 +652,12 @@ export default function Inbox() {
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.06)', borderRadius: '20px', padding: '0.4rem 1rem', border: '1px solid var(--panel-border)' }}>
                   <input 
                     type="text" 
-                    placeholder="Aa"
+                    placeholder={isRecording ? "Recording audio message... Click Mic again to send" : "Aa"}
                     value={replyText}
                     onChange={handleInputChange}
                     onKeyDown={e => e.key === 'Enter' && handleSend()}
-                    style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
+                    disabled={isRecording}
+                    style={{ flex: 1, background: 'transparent', border: 'none', color: isRecording ? 'red' : 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
                   />
                   <button 
                     onClick={() => {
