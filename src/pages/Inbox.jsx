@@ -26,6 +26,7 @@ export default function Inbox() {
 
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [platformFilter, setPlatformFilter] = useState('all');
 
   const addEmoji = (emoji) => {
     setReplyText(prev => prev + emoji);
@@ -305,10 +306,11 @@ export default function Inbox() {
     }
   };
 
-  const filteredChats = conversations.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.lastMessage.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredChats = conversations.filter(c => {
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.lastMessage.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesPlatform = platformFilter === 'all' ? true : c.platform === platformFilter;
+    return matchesSearch && matchesPlatform;
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: '1rem', minHeight: 0 }}>
@@ -317,9 +319,30 @@ export default function Inbox() {
         
         {/* LEFT: Chats List */}
         <div style={{ borderRight: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-          {/* Search */}
+          {/* Search & Filter Header */}
           <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '1rem', flexShrink: 0 }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Unified Inbox</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Unified Inbox</h2>
+              <select 
+                value={platformFilter}
+                onChange={e => setPlatformFilter(e.target.value)}
+                style={{ 
+                  background: 'rgba(255,255,255,0.06)', 
+                  border: '1px solid var(--panel-border)', 
+                  borderRadius: '10px', 
+                  color: 'var(--text-primary)', 
+                  fontSize: '0.78rem', 
+                  fontWeight: 600, 
+                  padding: '0.4rem 0.75rem',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="all" style={{ background: '#1c1c1e', color: '#fff' }}>All Chats</option>
+                <option value="facebook" style={{ background: '#1c1c1e', color: '#fff' }}>Facebook</option>
+                <option value="instagram" style={{ background: '#1c1c1e', color: '#fff' }}>Instagram</option>
+              </select>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(0,0,0,0.15)', padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid var(--panel-border)' }}>
               <Search size={16} color="var(--text-secondary)" />
               <input 
