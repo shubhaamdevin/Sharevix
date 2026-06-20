@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Search, Send, Star, Info, AlertCircle, Loader2, Mic, Image as ImageIcon, Smile, SmilePlus, Paperclip } from 'lucide-react';
+import { MessageSquare, Search, Send, Star, Info, AlertCircle, Loader2, Mic, Image as ImageIcon, SmilePlus, Paperclip } from 'lucide-react';
 import { FacebookIcon, InstagramIcon } from '../components/Icons';
-import EmojiPicker from 'emoji-picker-react';
 
 export default function Inbox() {
   const fbToken = localStorage.getItem('fb_access_token');
@@ -24,9 +23,7 @@ export default function Inbox() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showStickers, setShowStickers] = useState(false);
-  const [showGifs, setShowGifs] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
 
   const handleFileChange = (e) => {
@@ -113,9 +110,6 @@ export default function Inbox() {
     }
   };
 
-  const addEmoji = (emoji) => {
-    setReplyText(prev => prev + emoji);
-  };
 
   const scrollToBottom = () => {
     if (chatBodyRef.current) {
@@ -493,23 +487,8 @@ export default function Inbox() {
             {/* Reply Footer */}
             <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0, position: 'relative' }}>
               
-              {/* Emojis, Stickers, GIFs Overlay Popups */}
+              {/* Stickers Overlay Popup */}
               <AnimatePresence>
-                {showEmojiPicker && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    style={{ position: 'absolute', bottom: '100%', right: '10px', zIndex: 100, boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}
-                  >
-                    <EmojiPicker 
-                      onEmojiClick={(emojiData) => addEmoji(emojiData.emoji)} 
-                      theme="dark" 
-                      lazyLoadEmojis={true}
-                    />
-                  </motion.div>
-                )}
-
                 {showStickers && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
@@ -547,53 +526,6 @@ export default function Inbox() {
                     ))}
                   </motion.div>
                 )}
-
-                {showGifs && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    style={{ position: 'absolute', bottom: '100%', left: '110px', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '16px', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', zIndex: 100, width: '240px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}
-                  >
-                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Trending GIFs</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                      {[
-                        { icon: '🔥', url: 'https://media.giphy.com/media/t3kiY94p1w8Vgi84jS/giphy.gif' },
-                        { icon: '✨', url: 'https://media.giphy.com/media/313c380-1a2d-11ea-800a-0242ac130002/giphy.gif' },
-                        { icon: '🎈', url: 'https://media.giphy.com/media/10ZEx0FoCU2PnM/giphy.gif' },
-                        { icon: '💖', url: 'https://media.giphy.com/media/l41YcGT5ShJa0UXpm/giphy.gif' }
-                      ].map((gif, index) => (
-                        <div 
-                          key={index} 
-                          onClick={() => {
-                            const gifMsg = {
-                              id: Date.now(),
-                              sender: 'me',
-                              type: 'image',
-                              imageUrl: gif.url || 'https://media.giphy.com/media/10ZEx0FoCU2PnM/giphy.gif',
-                              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                            };
-                            setConversations(prev => prev.map(c => {
-                              if (c.id === selectedId) {
-                                  return {
-                                    ...c,
-                                    lastMessage: '📷 GIF attachment',
-                                    time: 'Just now',
-                                    messages: [...c.messages, gifMsg]
-                                  };
-                              }
-                              return c;
-                            }));
-                            setShowGifs(false);
-                          }}
-                          style={{ height: '60px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '1.25rem' }}
-                        >
-                          GIF {gif.icon}
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
               </AnimatePresence>
 
               {/* Utility Bar & Input controls */}
@@ -626,29 +558,13 @@ export default function Inbox() {
                 <button 
                   onClick={() => {
                     setShowStickers(!showStickers);
-                    setShowEmojiPicker(false);
-                    setShowGifs(false);
                   }}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1877F2' }}
                 >
                   <SmilePlus size={20} />
                 </button>
 
-                {/* GIF Button */}
-                <button 
-                  onClick={() => {
-                    setShowGifs(!showGifs);
-                    setShowStickers(false);
-                    setShowEmojiPicker(false);
-                  }}
-                  style={{ 
-                    background: 'none', border: '1.5px solid #1877F2', borderRadius: '6px', color: '#1877F2', fontSize: '0.65rem', fontWeight: 900, padding: '2px 4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '18px', width: '24px', letterSpacing: '-0.5px'
-                  }}
-                >
-                  GIF
-                </button>
-
-                {/* Input Text Box with internal Smiley Picker */}
+                {/* Input Text Box */}
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.06)', borderRadius: '20px', padding: '0.4rem 1rem', border: '1px solid var(--panel-border)' }}>
                   <input 
                     type="text" 
@@ -659,16 +575,6 @@ export default function Inbox() {
                     disabled={isRecording}
                     style={{ flex: 1, background: 'transparent', border: 'none', color: isRecording ? 'red' : 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
                   />
-                  <button 
-                    onClick={() => {
-                      setShowEmojiPicker(!showEmojiPicker);
-                      setShowStickers(false);
-                      setShowGifs(false);
-                    }}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1877F2', display: 'flex', alignItems: 'center' }}
-                  >
-                    <Smile size={18} />
-                  </button>
                 </div>
 
                 {/* Send Button */}
