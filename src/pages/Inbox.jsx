@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquare, Search, Send, Star, Info, AlertCircle, Loader2, Mic, Image as ImageIcon, SmilePlus, Paperclip } from 'lucide-react';
+import { MessageSquare, Search, Send, Star, Info, AlertCircle, Loader2, Mic, Image as ImageIcon, Smile, Paperclip } from 'lucide-react';
 import { FacebookIcon, InstagramIcon } from '../components/Icons';
+import EmojiPicker from 'emoji-picker-react';
 
 export default function Inbox() {
   const fbToken = localStorage.getItem('fb_access_token');
@@ -23,8 +24,12 @@ export default function Inbox() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
 
-  const [showStickers, setShowStickers] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+
+  const addEmoji = (emoji) => {
+    setReplyText(prev => prev + emoji);
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -487,43 +492,20 @@ export default function Inbox() {
             {/* Reply Footer */}
             <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0, position: 'relative' }}>
               
-              {/* Stickers Overlay Popup */}
+              {/* Emojis Overlay Popup */}
               <AnimatePresence>
-                {showStickers && (
+                {showEmojiPicker && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
-                    style={{ position: 'absolute', bottom: '100%', left: '70px', background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', borderRadius: '16px', padding: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', zIndex: 100, width: '220px', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}
+                    style={{ position: 'absolute', bottom: '100%', right: '10px', zIndex: 100, boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}
                   >
-                    {['🐱', '🐶', '🦊', '🦁', '🐸', '🐵', '🦄', '🐼'].map(sticker => (
-                      <button 
-                        key={sticker} 
-                        onClick={() => {
-                          const stickerMsg = {
-                            id: Date.now(),
-                            sender: 'me',
-                            text: sticker,
-                            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          };
-                          setConversations(prev => prev.map(c => {
-                            if (c.id === selectedId) {
-                              return {
-                                ...c,
-                                lastMessage: `sticker ${sticker}`,
-                                time: 'Just now',
-                                messages: [...c.messages, stickerMsg]
-                              };
-                            }
-                            return c;
-                          }));
-                          setShowStickers(false);
-                        }}
-                        style={{ fontSize: '1.75rem', background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem' }}
-                      >
-                        {sticker}
-                      </button>
-                    ))}
+                    <EmojiPicker 
+                      onEmojiClick={(emojiData) => addEmoji(emojiData.emoji)} 
+                      theme="dark" 
+                      lazyLoadEmojis={true}
+                    />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -554,17 +536,7 @@ export default function Inbox() {
                   <ImageIcon size={20} />
                 </button>
 
-                {/* Stickers Button */}
-                <button 
-                  onClick={() => {
-                    setShowStickers(!showStickers);
-                  }}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#1877F2' }}
-                >
-                  <SmilePlus size={20} />
-                </button>
-
-                {/* Input Text Box */}
+                {/* Input Text Box with internal Smiley Picker */}
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.06)', borderRadius: '20px', padding: '0.4rem 1rem', border: '1px solid var(--panel-border)' }}>
                   <input 
                     type="text" 
@@ -575,6 +547,14 @@ export default function Inbox() {
                     disabled={isRecording}
                     style={{ flex: 1, background: 'transparent', border: 'none', color: isRecording ? 'red' : 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
                   />
+                  <button 
+                    onClick={() => {
+                      setShowEmojiPicker(!showEmojiPicker);
+                    }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1877F2', display: 'flex', alignItems: 'center' }}
+                  >
+                    <Smile size={18} />
+                  </button>
                 </div>
 
                 {/* Send Button */}
