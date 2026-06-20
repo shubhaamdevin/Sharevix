@@ -12,6 +12,7 @@ const initialDemoConversations = [
     lastMessage: 'Aapki service prices kya hain for monthly package?',
     time: '2 mins ago',
     unread: true,
+    isOnline: true,
     messages: [
       { id: 1, sender: 'them', text: 'Hello! I saw your post about social media management.', time: '10:15 AM' },
       { id: 2, sender: 'me', text: 'Hi Amit! How can we help you today?', time: '10:17 AM' },
@@ -26,6 +27,7 @@ const initialDemoConversations = [
     lastMessage: 'Awesome design! Loved the post style.',
     time: '1 hour ago',
     unread: false,
+    isOnline: false,
     messages: [
       { id: 1, sender: 'them', text: 'Awesome design! Loved the post style.', time: '09:05 AM' }
     ]
@@ -45,6 +47,18 @@ export default function Inbox() {
   const fbToken = localStorage.getItem('fb_access_token');
   const fbPageId = localStorage.getItem('fb_page_id');
   const typingTimeoutRef = useRef(null);
+  const chatBodyRef = useRef(null);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTo({
+        top: chatBodyRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const fetchRealConversations = async (showLoadingState = false) => {
     if (!fbToken || !fbPageId) {
@@ -67,6 +81,10 @@ export default function Inbox() {
             time: new Date(m.created_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           })).reverse();
 
+          // Assume FB users are online if updated recently (e.g. within 30 minutes)
+          const lastUpdated = new Date(conv.updated_time).getTime();
+          const isOnline = (Date.now() - lastUpdated) < 30 * 60 * 1000;
+
           return {
             id: conv.id,
             name: senderName,
@@ -76,14 +94,14 @@ export default function Inbox() {
             time: new Date(conv.updated_time).toLocaleDateString(),
             unread: false,
             messages: msgs,
-            psid: conv.senders?.data?.[0]?.id
+            psid: conv.senders?.data?.[0]?.id,
+            isOnline: isOnline
           };
         });
         
         if (formatted.length > 0) {
           setConversations(formatted);
           setIsRealSync(true);
-          // Set selection if not set or if current selection is demo
           setSelectedId(prev => (prev.startsWith('demo_') ? formatted[0].id : prev));
         }
       }
@@ -94,7 +112,7 @@ export default function Inbox() {
     }
   };
 
-  // Poll for new messages every 5 seconds (Real-time live receiving)
+  // Poll for new messages every 5 seconds
   useEffect(() => {
     fetchRealConversations(true);
     const interval = setInterval(() => {
@@ -104,6 +122,11 @@ export default function Inbox() {
   }, [fbToken, fbPageId]);
 
   const currentChat = conversations.find(c => c.id === selectedId);
+
+  // Auto Scroll to bottom on updates
+  useEffect(() => {
+    scrollToBottom();
+  }, [currentChat?.messages, otherUserTyping, selectedId]);
 
   // Send Typing Indicator Action to Facebook API
   const sendTypingIndicator = async (isActive) => {
@@ -185,7 +208,10 @@ export default function Inbox() {
       setSending(false);
 
       // Simulate client typing a mock response after 1.5 seconds
-      setOtherUserTyping(true);
+      setTimeout(() => {
+        setOtherUserTyping(true);
+      }, 800);
+
       setTimeout(() => {
         setOtherUserTyping(false);
         const replyBack = {
@@ -205,7 +231,7 @@ export default function Inbox() {
           }
           return c;
         }));
-      }, 3500);
+      }, 3000);
     }
   };
 
@@ -215,22 +241,22 @@ export default function Inbox() {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 80px)', gap: '1rem', minHeight: 0 }}>
       
       {/* Real Sync Status Alert Banner */}
       {!isRealSync && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1.25rem', background: 'rgba(255, 152, 0, 0.05)', border: '1px dashed rgba(255, 152, 0, 0.3)', borderRadius: '12px', fontSize: '0.82rem', color: 'orange' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1.25rem', background: 'rgba(255, 152, 0, 0.05)', border: '1px dashed rgba(255, 152, 0, 0.3)', borderRadius: '12px', fontSize: '0.82rem', color: 'orange', flexShrink: 0 }}>
           <AlertCircle size={16} />
           <span><strong>Demo Mode Active:</strong> Sync real Meta Page conversations by connecting your Facebook account inside the <strong>Accounts</strong> tab.</span>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', flex: 1, background: 'var(--panel-bg)', borderRadius: '24px', border: '1px solid var(--panel-border)', overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', flex: 1, background: 'var(--panel-bg)', borderRadius: '24px', border: '1px solid var(--panel-border)', overflow: 'hidden', minHeight: 0 }}>
         
         {/* LEFT: Chats List */}
-        <div style={{ borderRight: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ borderRight: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
           {/* Search */}
-          <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '1rem', flexShrink: 0 }}>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Unified Inbox</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(0,0,0,0.15)', padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid var(--panel-border)' }}>
               <Search size={16} color="var(--text-secondary)" />
@@ -245,12 +271,13 @@ export default function Inbox() {
           </div>
 
           {/* List */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', minHeight: 0 }}>
             {loading && conversations.length === 0 ? (
               <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem', fontSize: '0.85rem' }}>Syncing data stream...</div>
             ) : filteredChats.map(chat => {
               const isSelected = chat.id === selectedId;
               const PlatformIcon = chat.platform === 'facebook' ? FacebookIcon : InstagramIcon;
+              const isCurrentTyping = isSelected && otherUserTyping;
               return (
                 <div 
                   key={chat.id}
@@ -267,14 +294,18 @@ export default function Inbox() {
                     <div style={{ position: 'absolute', bottom: -2, right: -2, background: chat.platform === 'facebook' ? '#1877F2' : '#E1306C', padding: '3px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       <PlatformIcon size={12} color="#fff" />
                     </div>
+                    {/* Active Now Status Dot */}
+                    {chat.isOnline && (
+                      <div style={{ position: 'absolute', top: -2, right: -2, width: '10px', height: '10px', background: '#00e676', border: '2px solid var(--bg-dark)', borderRadius: '50%' }}></div>
+                    )}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{chat.name}</span>
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{chat.time}</span>
                     </div>
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {chat.lastMessage}
+                    <p style={{ fontSize: '0.78rem', color: isCurrentTyping ? 'var(--success)' : 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isCurrentTyping ? 700 : 400 }}>
+                      {isCurrentTyping ? 'typing...' : chat.lastMessage}
                     </p>
                   </div>
                   {chat.unread && (
@@ -288,15 +319,18 @@ export default function Inbox() {
 
         {/* RIGHT: Chat Window */}
         {currentChat ? (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
             {/* Chat Header */}
-            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--panel-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <img src={currentChat.avatar} alt={currentChat.name} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' }} />
+                <div style={{ position: 'relative' }}>
+                  <img src={currentChat.avatar} alt={currentChat.name} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100' }} />
+                  <div style={{ position: 'absolute', top: -1, right: -1, width: '10px', height: '10px', background: currentChat.isOnline ? '#00e676' : '#9e9e9e', border: '2px solid var(--bg-dark)', borderRadius: '50%' }}></div>
+                </div>
                 <div>
                   <h4 style={{ fontWeight: 700, fontSize: '0.95rem' }}>{currentChat.name}</h4>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    Active on {currentChat.platform.toUpperCase()}
+                  <span style={{ fontSize: '0.7rem', color: currentChat.isOnline ? 'var(--success)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
+                    {currentChat.isOnline ? 'Active now' : 'Offline'} • {currentChat.platform.toUpperCase()}
                   </span>
                 </div>
               </div>
@@ -307,7 +341,10 @@ export default function Inbox() {
             </div>
 
             {/* Messages Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div 
+              ref={chatBodyRef}
+              style={{ flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 0 }}
+            >
               {currentChat.messages.map(m => {
                 const isMe = m.sender === 'me';
                 return (
@@ -340,10 +377,12 @@ export default function Inbox() {
                   </div>
                 </div>
               )}
+              
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Reply Footer */}
-            <div style={{ padding: '1.25rem', borderTop: '1px solid var(--panel-border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div style={{ padding: '1.25rem', borderTop: '1px solid var(--panel-border)', display: 'flex', gap: '0.75rem', alignItems: 'center', flexShrink: 0 }}>
               <input 
                 type="text" 
                 placeholder={`Reply to ${currentChat.name}...`}
