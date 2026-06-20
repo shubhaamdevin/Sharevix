@@ -19,6 +19,9 @@ import AdminPosts from './pages/AdminPosts';
 import AdminScheduled from './pages/AdminScheduled';
 import AuthCallback from './pages/AuthCallback';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import Inbox from './pages/Inbox';
+import InspirationRadar from './pages/InspirationRadar';
+import ApprovalPortal from './pages/ApprovalPortal';
 import Layout from './components/Layout';
 import AdminLayout from './components/AdminLayout';
 import { useAuth } from './context/AuthContext';
@@ -193,7 +196,11 @@ function App() {
             <Route path="drafts" element={<ProtectedRoute><Drafts /></ProtectedRoute>} />
             <Route path="accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
             <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="inbox" element={<ProtectedRoute><Inbox /></ProtectedRoute>} />
+            <Route path="inspiration" element={<ProtectedRoute><InspirationRadar /></ProtectedRoute>} />
           </Route>
+          
+          <Route path="/approve/:postId" element={<ApprovalPortal />} />
           
           <Route path="/admin" element={
             <ProtectedRoute requireAdmin={true}>

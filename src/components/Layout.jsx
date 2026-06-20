@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, PenSquare, Calendar, Users, Settings, LogOut, ShieldCheck, FileEdit, FileText, Radio } from 'lucide-react';
+import { LayoutDashboard, PenSquare, Calendar, Users, Settings, LogOut, ShieldCheck, FileEdit, FileText, Radio, MessageSquare, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Layout() {
@@ -13,6 +13,8 @@ export default function Layout() {
     { path: '/create', icon: PenSquare, label: 'Create Post' },
     { path: '/calendar', icon: Calendar, label: 'Calendar' },
     { path: '/drafts', icon: FileEdit, label: 'Drafts' },
+    { path: '/inbox', icon: MessageSquare, label: 'Inbox' },
+    { path: '/inspiration', icon: Sparkles, label: 'Inspiration' },
     { path: '/accounts', icon: Users, label: 'Accounts' },
     { path: '/settings', icon: Settings, label: 'Settings' }
   ];

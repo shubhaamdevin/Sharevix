@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileEdit, Trash2, CalendarClock, Globe } from 'lucide-react';
+import { FileEdit, Trash2, CalendarClock, Globe, Share2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
 import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon } from '../components/Icons';
@@ -152,6 +152,42 @@ export default function Drafts() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button 
+                      onClick={() => {
+                        const link = `${window.location.origin}/approve/${draft.id}`;
+                        navigator.clipboard.writeText(link);
+                        window.dispatchEvent(new CustomEvent('show-notification', { 
+                          detail: { type: 'success', message: 'Approval link copied to clipboard!' } 
+                        }));
+                      }}
+                      style={{
+                        background: 'rgba(99, 102, 241, 0.1)',
+                        border: '1px solid rgba(99, 102, 241, 0.2)',
+                        color: 'var(--accent-purple)',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'var(--accent-purple)';
+                        e.currentTarget.style.color = '#fff';
+                        e.currentTarget.style.borderColor = 'var(--accent-purple)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)';
+                        e.currentTarget.style.color = 'var(--accent-purple)';
+                        e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.2)';
+                      }}
+                    >
+                      <Share2 size={12} /> Share
+                    </button>
+
                     <button 
                       onClick={() => navigate('/create', { state: { editPost: draft } })}
                       style={{

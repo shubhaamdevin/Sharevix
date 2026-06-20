@@ -723,7 +723,7 @@ export default function CreatePost() {
                     </div>
                   </div>
                 ) : (
-                  <img src={file.url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={file.url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: file.filter || 'none' }} />
                 )}
               </div>
             ))}
@@ -1499,6 +1499,9 @@ export default function CreatePost() {
     return false;
   });
 
+  const [brandVoice, setBrandVoice] = useState('hype');
+  const [activeMediaFilterIdx, setActiveMediaFilterIdx] = useState(null);
+
   // Hashtags Dropdown State
   const [showHashtags, setShowHashtags] = useState(false);
   const [hashtagSearchTopic, setHashtagSearchTopic] = useState('');
@@ -1657,13 +1660,18 @@ export default function CreatePost() {
     const keywords = baseText.split(' ').filter(w => w.length > 3).slice(0, 3);
     const tags = keywords.map(k => `#${k.replace(/[^a-zA-Z]/g, '')}`).join(' ');
     
-    const generatedTitle = `✨ ${baseText.split(' ').slice(0, 5).join(' ')}...`;
-    
-    const expansion = contentType === 'quiz' 
-      ? "\n\nLet's settle this! Drop your vote in the poll below. 👇\n" 
-      : "\n\nWe're so excited to share this with you. Let us know your thoughts in the comments below! 👇\n";
+    let generatedTitle = `✨ ${baseText.split(' ').slice(0, 5).join(' ')}...`;
+    let generatedDescription = '';
 
-    const generatedDescription = `${baseText}${expansion}\n${tags} #Sharevix`;
+    if (brandVoice === 'professional') {
+      generatedDescription = `💼 Executive Summary: ${baseText}\n\nWe are pleased to share these insights with our network. Key takeaways are aligned with our strategic goals. We invite your thoughts and feedback below. 👇\n\n${tags} #BusinessDevelopment #Sharevix`;
+    } else if (brandVoice === 'funny') {
+      generatedDescription = `🤪 Quick thought: ${baseText}\n\nNobody asked, but we did it anyway. 😂 Let us know if you agree or if we should delete this! 👇\n\n${tags} #meme #Sharevix`;
+    } else if (brandVoice === 'aesthetic') {
+      generatedDescription = `🌿 ${baseText}\n\nFinding beauty in the small moments. ✨ Hope this brings a positive vibe to your feed today. ✨\n\n${tags} #Aesthetics #Sharevix`;
+    } else { // default hype
+      generatedDescription = `🚀 HUGE NEWS! 🔥 ${baseText} 🔥\n\nThis is absolutely game-changing! You do NOT want to miss out on this. Drop a like, tag a friend, and comment your thoughts below! 🚀👇\n\n${tags} #Trending #Sharevix`;
+    }
     
     setPlatformContents(prev => ({ ...prev, [activeTab]: { title: '', description: '' } }));
     
@@ -1684,6 +1692,32 @@ export default function CreatePost() {
         setIsGenerating(false);
       }
     }, 15);
+  };
+
+  const repurposePost = () => {
+    const mainText = platformContents.universal.description || platformContents.universal.title;
+    if (!mainText || mainText.trim().length < 5) {
+      window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'error', message: 'Please write universal content first!' }}));
+      return;
+    }
+    
+    setPlatformContents(prev => {
+      const next = { ...prev };
+      selectedTargets.forEach(target => {
+        let content = mainText;
+        if (target === 'x') {
+          content = content.substring(0, 240) + '... 👇';
+        } else if (target === 'instagram') {
+          content = content + '\n\n✨ Follow us for more! ✨\n#instadaily #photooftheday #viral';
+        } else if (target === 'facebook') {
+          content = content + '\n\nWhat are your thoughts on this? Let us know in the comments below! 👍';
+        }
+        next[target] = { title: prev.universal.title, description: content };
+      });
+      return next;
+    });
+
+    window.dispatchEvent(new CustomEvent('show-notification', { detail: { type: 'success', message: 'Content optimized for all selected platforms!' }}));
   };
 
   const handlePublish = async (status) => {
@@ -2366,7 +2400,48 @@ export default function CreatePost() {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Universal Composer</h2>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <select 
+              value={brandVoice} 
+              onChange={e => setBrandVoice(e.target.value)}
+              style={{
+                background: 'var(--bg-dark)',
+                border: '1px solid var(--panel-border)',
+                borderRadius: '20px',
+                padding: '0.5rem 0.75rem',
+                color: 'var(--text-primary)',
+                fontSize: '0.85rem',
+                outline: 'none',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontFamily: 'inherit'
+              }}
+            >
+              <option value="hype" style={{ background: 'var(--bg-dark)' }}>Hype 🔥</option>
+              <option value="professional" style={{ background: 'var(--bg-dark)' }}>Professional 💼</option>
+              <option value="funny" style={{ background: 'var(--bg-dark)' }}>Funny 🤪</option>
+              <option value="aesthetic" style={{ background: 'var(--bg-dark)' }}>Aesthetic 🌿</option>
+            </select>
+            <button 
+              type="button"
+              onClick={repurposePost} 
+              className="btn-secondary" 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                padding: '0.5rem 1rem', 
+                borderRadius: '20px', 
+                fontSize: '0.9rem',
+                border: '1px solid var(--panel-border)',
+                background: 'transparent',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                fontFamily: 'inherit'
+              }}
+            >
+              Optimize Overrides
+            </button>
             <button 
               onClick={() => { setShowHashtags(!showHashtags); setHashtagSearchTopic(''); }} 
               className="btn-secondary" 
@@ -2629,13 +2704,20 @@ export default function CreatePost() {
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', background: 'var(--bg-dark)', padding: '1rem', borderRadius: '16px', border: '1px dashed var(--panel-border)' }}>
                   <AnimatePresence>
                     {media.map((file, idx) => (
-                      <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} key={idx} style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--panel-border)' }}>
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.8 }} 
+                        animate={{ opacity: 1, scale: 1 }} 
+                        exit={{ opacity: 0, scale: 0.8 }} 
+                        key={idx} 
+                        onClick={() => !file.type.startsWith('video') && setActiveMediaFilterIdx(idx)}
+                        style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', border: activeMediaFilterIdx === idx ? '2px solid var(--accent-blue)' : '1px solid var(--panel-border)', cursor: file.type.startsWith('video') ? 'default' : 'pointer' }}
+                      >
                         {file.type.startsWith('video') ? (
                           <video src={file.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
                         ) : (
-                          <img src={file.url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={file.url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: file.filter || 'none' }} />
                         )}
-                        <button type="button" onClick={() => removeMedia(idx)} style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); removeMedia(idx); }} style={{ position: 'absolute', top: '2px', right: '2px', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', zIndex: 10 }}>
                           <X size={12} />
                         </button>
                       </motion.div>
@@ -2650,6 +2732,57 @@ export default function CreatePost() {
                     <input type="file" multiple accept={contentType === 'reel' || contentType === 'video' ? "video/*" : "image/*,video/*"} onChange={handleMediaUpload} style={{ display: 'none' }} />
                   </label>
                 </div>
+
+                {/* Filter Selector Panel */}
+                {activeMediaFilterIdx !== null && media[activeMediaFilterIdx] && (
+                  <div className="glass-panel" style={{ padding: '1rem', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(0,0,0,0.25)', border: '1px solid var(--panel-border)', borderRadius: '12px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Apply Image Filter:</div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {[
+                        { name: 'None', css: 'none' },
+                        { name: 'Grayscale', css: 'grayscale(1)' },
+                        { name: 'Warm', css: 'sepia(0.6) saturate(1.2)' },
+                        { name: 'Cool', css: 'hue-rotate(30deg) saturate(1.1)' },
+                        { name: 'Vintage', css: 'contrast(1.2) brightness(0.95) sepia(0.3)' }
+                      ].map(f => (
+                        <button
+                          key={f.name}
+                          type="button"
+                          onClick={() => {
+                            setPlatformMedia(prev => {
+                              const next = { ...prev };
+                              const currentList = next[activeTab] !== undefined 
+                                ? [...next[activeTab]] 
+                                : [...(next.universal || [])];
+                              currentList[activeMediaFilterIdx] = {
+                                ...currentList[activeMediaFilterIdx],
+                                filter: f.css
+                              };
+                              next[activeTab] = currentList;
+                              return next;
+                            });
+                          }}
+                          style={{
+                            padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+                            background: (media[activeMediaFilterIdx].filter || 'none') === f.css ? 'var(--accent-blue)' : 'rgba(255,255,255,0.03)',
+                            color: (media[activeMediaFilterIdx].filter || 'none') === f.css ? '#000' : 'var(--text-primary)',
+                            border: '1px solid var(--panel-border)',
+                            fontFamily: 'inherit'
+                          }}
+                        >
+                          {f.name}
+                        </button>
+                      ))}
+                      <button 
+                        type="button" 
+                        onClick={() => setActiveMediaFilterIdx(null)}
+                        style={{ marginLeft: 'auto', padding: '0.35rem 0.75rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', border: '1px solid var(--error)', background: 'transparent', color: 'var(--error)', fontFamily: 'inherit' }}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {(contentType === 'reel' || contentType === 'video') && (
@@ -2963,6 +3096,15 @@ export default function CreatePost() {
                       />
                     </div>
                   </div>
+                  <div style={{ marginTop: '0.75rem', padding: '0.75rem 1rem', borderRadius: '12px', background: 'rgba(99, 102, 241, 0.05)', border: '1px dashed rgba(99, 102, 241, 0.3)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-purple)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🚀 Best Timing Recommendations</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {selectedTargets.includes('facebook') && '• Facebook: Best times are 9:00 AM - 12:00 PM. '}
+                      {selectedTargets.includes('instagram') && '• Instagram: Best times are 5:00 PM - 8:00 PM. '}
+                      {selectedTargets.includes('x') && '• X (Twitter): Best times are 12:00 PM - 3:00 PM. '}
+                      {(!selectedTargets || selectedTargets.length === 0) && 'Please select a social platform target to show recommendations.'}
+                    </div>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -3211,7 +3353,7 @@ export default function CreatePost() {
                             </div>
                           </div>
                         ) : (
-                          <img src={file.url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={file.url} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: file.filter || 'none' }} />
                         )}
                       </div>
                     ))}

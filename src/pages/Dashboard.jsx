@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, Heart, Activity, PenSquare, ChevronDown, Globe, CheckCircle2, Clock, FileEdit, Trash2, Users, Radio } from 'lucide-react';
+import { Eye, Heart, Activity, PenSquare, ChevronDown, Globe, CheckCircle2, Clock, FileEdit, Trash2, Users, Radio, Download } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
 import { InstagramIcon, FacebookIcon, YoutubeIcon, TwitterIcon, LinkedinIcon, TiktokIcon } from '../components/Icons';
@@ -257,6 +258,35 @@ export default function Dashboard() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '160px' }}>
+            <button 
+              onClick={() => window.print()} 
+              className="btn-secondary" 
+              style={{ 
+                padding: '0.6rem 1.25rem', 
+                borderRadius: '10px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                justifyContent: 'center',
+                fontSize: '0.85rem',
+                border: '1px solid var(--panel-border)',
+                background: 'rgba(255,255,255,0.02)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                width: '100%'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
+                e.currentTarget.style.borderColor = 'var(--panel-border)';
+              }}
+            >
+              <Download size={14} /> Export Report (PDF)
+            </button>
             <button onClick={() => navigate('/create')} className="btn-primary" style={{ padding: '0.6rem 1.25rem', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', width: '100%' }}>
               <PenSquare size={16} /> Create New Post
             </button>
@@ -358,6 +388,44 @@ export default function Dashboard() {
                   <div style={{ color: 'var(--warning)', fontWeight: 800, fontSize: '1.3rem' }}>{drafts}</div>
                 </div>
               </div>
+
+              {/* Campaign Reach & Engagement Chart */}
+              <motion.div variants={itemVariants} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', border: '1px solid var(--panel-border)' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Reach & Engagement Performance</h3>
+                <div style={{ width: '100%', height: 280 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={[
+                        { name: 'Mon', Reach: Math.round(estimatedReach * 0.1) || 120, Engagement: Math.round(estimatedEngagement * 0.1) || 15 },
+                        { name: 'Tue', Reach: Math.round(estimatedReach * 0.25) || 280, Engagement: Math.round(estimatedEngagement * 0.25) || 35 },
+                        { name: 'Wed', Reach: Math.round(estimatedReach * 0.45) || 510, Engagement: Math.round(estimatedEngagement * 0.4) || 60 },
+                        { name: 'Thu', Reach: Math.round(estimatedReach * 0.6) || 720, Engagement: Math.round(estimatedEngagement * 0.55) || 85 },
+                        { name: 'Fri', Reach: Math.round(estimatedReach * 0.8) || 980, Engagement: Math.round(estimatedEngagement * 0.75) || 115 },
+                        { name: 'Sat', Reach: Math.round(estimatedReach * 0.95) || 1240, Engagement: Math.round(estimatedEngagement * 0.9) || 140 },
+                        { name: 'Sun', Reach: estimatedReach || 1500, Engagement: estimatedEngagement || 180 }
+                      ]}
+                      margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorReach" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--accent-blue)" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="var(--accent-blue)" stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorEngage" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--accent-purple)" stopOpacity={0.2}/>
+                          <stop offset="95%" stopColor="var(--accent-purple)" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} />
+                      <YAxis stroke="var(--text-secondary)" fontSize={12} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <Tooltip contentStyle={{ background: 'var(--panel-bg)', borderColor: 'var(--panel-border)', borderRadius: '8px', color: 'var(--text-primary)' }} />
+                      <Area type="monotone" dataKey="Reach" stroke="var(--accent-blue)" fillOpacity={1} fill="url(#colorReach)" strokeWidth={2} />
+                      <Area type="monotone" dataKey="Engagement" stroke="var(--accent-purple)" fillOpacity={1} fill="url(#colorEngage)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </motion.div>
 
               {/* Premium List Row Cards */}
               <motion.div variants={itemVariants} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>

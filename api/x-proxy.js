@@ -9,13 +9,7 @@ export default async function handler(req, res) {
   }
 
   const method = req.method;
-  let requestData = {};
-  
-  if (method === 'POST') {
-    requestData = req.body || {};
-  } else {
-    requestData = req.query || {};
-  }
+  const requestData = method === 'POST' ? (req.body || {}) : (req.query || {});
 
   const { path, targetMethod = 'GET', params = {}, body = {} } = requestData;
 
@@ -24,36 +18,27 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Extract access token from different potential locations
+    // Resolve access token from multiple places
     let token = requestData.access_token || params.access_token || body.access_token;
-    
-    // Fallback: check Authorization header from request
     if (!token && req.headers.authorization) {
       token = req.headers.authorization.replace('Bearer ', '');
     }
-
     if (!token) {
       return res.status(400).json({ error: 'X access token is required' });
     }
 
-    // Clean up access token from params and body so we don't forward it to X API
-    if (params.access_token) delete params.access_token;
-    if (body.access_token) delete body.access_token;
+    // Remove token from forwarded params/body
+    delete params.access_token;
+    delete body.access_token;
 
-    // Construct target URL (X API v2)
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    const queryParams = new URLSearchParams(params);
-    const targetUrl = `https://api.twitter.com/2${cleanPath}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-
-    console.log(`X Proxy forwarding: ${targetMethod} ${targetUrl}`);
+    const query = new URLSearchParams(params).toString();
+    const targetUrl = `https://api.twitter.com/2${cleanPath}${query ? '?' + query : ''}`;
 
     const fetchOptions = {
       method: targetMethod.toUpperCase(),
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers: { Authorization: `Bearer ${token}` }
     };
-
     if (fetchOptions.method !== 'GET' && fetchOptions.method !== 'HEAD') {
       fetchOptions.headers['Content-Type'] = 'application/json';
       fetchOptions.body = JSON.stringify(body);
@@ -61,11 +46,9 @@ export default async function handler(req, res) {
 
     const apiRes = await fetch(targetUrl, fetchOptions);
     const apiData = await apiRes.json();
-
     return res.status(apiRes.status).json(apiData);
-
-  } catch (error) {
-    console.error('X proxy error:', error);
-    return res.status(500).json({ error: error.message || 'Internal server error' });
+  } catch (err) {
+    console.error('X proxy error:', err);
+    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 }

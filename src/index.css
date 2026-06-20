@@ -280,11 +280,38 @@ body.light-theme .btn-secondary:hover {
   .app-sidebar nav {
     flex-direction: row !important;
     flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
   }
 
   .composer-grid {
     grid-template-columns: 1fr;
     gap: 2rem;
+  }
+}
+
+@media (max-width: 580px) {
+  .post-list-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .post-list-item > div {
+    width: 100%;
+  }
+
+  .app-sidebar nav a {
+    flex: 1 1 45%;
+    justify-content: center;
+    font-size: 0.8rem;
+    padding: 0.6rem 0.8rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .app-sidebar nav a {
+    flex: 1 1 100%;
   }
 }
 
