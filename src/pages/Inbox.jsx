@@ -27,6 +27,7 @@ export default function Inbox() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [platformFilter, setPlatformFilter] = useState('all');
+  const [readMessageIds, setReadMessageIds] = useState(() => JSON.parse(localStorage.getItem('read_message_ids') || '{}'));
 
   const addEmoji = (emoji) => {
     setReplyText(prev => prev + emoji);
@@ -155,7 +156,7 @@ export default function Inbox() {
           const isOnline = lastMsg && lastMsg.sender === 'them' && (Date.now() - lastMsg.timestamp) < 5 * 60 * 1000;
 
           // If the last message is from the customer and we haven't selected their chat yet, mark as unread
-          const isUnread = lastMsg && lastMsg.sender === 'them' && selectedId !== conv.id;
+          const isUnread = lastMsg && lastMsg.sender === 'them' && selectedId !== conv.id && readMessageIds[conv.id] !== lastMsg.id;
 
           return {
             id: conv.id,
@@ -198,6 +199,21 @@ export default function Inbox() {
   useEffect(() => {
     scrollToBottom();
   }, [currentChat?.messages, otherUserTyping, selectedId]);
+
+  // Mark selected conversation's last message as read and save to localStorage
+  useEffect(() => {
+    if (selectedId && currentChat) {
+      const lastMsg = currentChat.messages[currentChat.messages.length - 1];
+      if (lastMsg && readMessageIds[selectedId] !== lastMsg.id) {
+        const updatedReadIds = { ...readMessageIds, [selectedId]: lastMsg.id };
+        setReadMessageIds(updatedReadIds);
+        localStorage.setItem('read_message_ids', JSON.stringify(updatedReadIds));
+        
+        // Clear unread flag locally
+        setConversations(prev => prev.map(c => c.id === selectedId ? { ...c, unread: false } : c));
+      }
+    }
+  }, [selectedId, currentChat?.messages, readMessageIds]);
 
   // Send Typing Indicator Action to Facebook API
   const sendTypingIndicator = async (isActive) => {
