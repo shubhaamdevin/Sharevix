@@ -29,11 +29,7 @@ export default function TotalPosts() {
 
   const getPostComments = (post) => {
     if (post.commentsList) return post.commentsList;
-    return [
-      { id: 1, author: "Aarav Sharma", text: "This is super useful! Thanks for sharing. 🙌", time: "2 hours ago", likes: 12 },
-      { id: 2, author: "Sneha Patel", text: "Love the branding and the creative style of this post. Great work Sharevix team!", time: "4 hours ago", likes: 8 },
-      { id: 3, author: "Rajesh Kumar", text: "Can you share more details about the rollout timeline? Looks promising.", time: "1 day ago", likes: 3 }
-    ];
+    return [];
   };
 
   const handleAddComment = async (postId, text) => {
@@ -49,11 +45,7 @@ export default function TotalPosts() {
       likes: 0
     };
 
-    const currentComments = targetPost.commentsList || [
-      { id: 1, author: "Aarav Sharma", text: "This is super useful! Thanks for sharing. 🙌", time: "2 hours ago", likes: 12 },
-      { id: 2, author: "Sneha Patel", text: "Love the branding and the creative style of this post. Great work Sharevix team!", time: "4 hours ago", likes: 8 },
-      { id: 3, author: "Rajesh Kumar", text: "Can you share more details about the rollout timeline? Looks promising.", time: "1 day ago", likes: 3 }
-    ];
+    const currentComments = targetPost.commentsList || [];
 
     const updatedComments = [...currentComments, commentObj];
 
@@ -331,11 +323,10 @@ export default function TotalPosts() {
     if (post.status !== 'published') {
       return { likes: 0, comments: 0, followers: 0 };
     }
-    const seed = String(post.id).charCodeAt(0) || 10;
-    const likes = post.likes !== undefined ? post.likes : ((seed % 150) + 45);
+    const likes = post.likes !== undefined ? post.likes : 0;
     const commentsList = getPostComments(post);
     const comments = commentsList.length;
-    const followers = post.followers !== undefined ? post.followers : (Math.floor((seed % 150 + 45) * 0.08) + 1);
+    const followers = post.followers !== undefined ? post.followers : 0;
     return { likes, comments, followers };
   };
 
