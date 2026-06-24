@@ -297,7 +297,7 @@ export default function AuthCallback() {
                   localStorage.setItem('fb_access_token', pageWithIg.access_token);
                   pagesSaved = true;
                 } else {
-                  fetchError = 'No Instagram Business Account linked to your Facebook Pages. Please link your Instagram Professional account to your Facebook Page.';
+                  fetchError = 'No Instagram Business Account linked to your Facebook Pages. Please link your Instagram Professional account to your Facebook Page in Page Settings. If you recently linked it, click "Edit Settings" in the Facebook popup and select the new accounts/permissions, or remove and re-add Sharevix in your Facebook Business Integrations settings to reset the session.';
                 }
               } else {
                 pagesSaved = true;
@@ -318,7 +318,7 @@ export default function AuthCallback() {
             localStorage.setItem('connectedAccounts', JSON.stringify(updatedConnections));
             setStatus('error');
             setMessage(`Connection Failed: ${fetchError || 'No active Facebook Pages found'}`);
-            setTimeout(() => navigate('/accounts'), 4000);
+            setTimeout(() => navigate('/accounts'), 20000);
             return;
           }
         }
@@ -339,7 +339,7 @@ export default function AuthCallback() {
 
   return (
     <div style={{ flex: 1, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-dark)' }}>
-      <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', maxWidth: '400px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', maxWidth: '500px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         
         {status === 'processing' && (
           <>
@@ -362,7 +362,17 @@ export default function AuthCallback() {
           </>
         )}
         
-        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.5', margin: '0 0 1rem' }}>{message}.</p>
+        <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 1.5rem', fontSize: '0.95rem' }}>{message}</p>
+        
+        {status === 'error' && (
+          <button 
+            onClick={() => navigate('/accounts')}
+            className="btn-primary" 
+            style={{ padding: '0.6rem 1.5rem', borderRadius: '10px', fontSize: '0.9rem', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Go Back to Accounts
+          </button>
+        )}
         
       </div>
     </div>
