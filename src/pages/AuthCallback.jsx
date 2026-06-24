@@ -306,7 +306,7 @@ export default function AuthCallback() {
               fetchError = data.error?.message || 'Failed to fetch Facebook pages';
               console.error('Facebook API error:', data);
             } else if (data.data && data.data.length === 0) {
-              fetchError = 'No Facebook Pages found. Make sure: (1) You have a Facebook Page with admin access, (2) Your Facebook App is in Live mode or you are added as a Tester in the App, (3) You granted all page permissions during login.';
+              fetchError = `No Facebook Pages found. Raw API response: ${JSON.stringify(data)}. Make sure: (1) You have a Facebook Page with admin access, (2) Your Facebook App is in Live mode or you are added as a Tester in the App, (3) You granted all page permissions during login.`;
             }
           } catch (err) {
             fetchError = err.message;
